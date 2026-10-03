@@ -1,0 +1,286 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Tema de Cierre & Reparto — fuente: design/DESIGN.md (frontmatter).
+ * Toda la paleta vive acá como variables. En componentes se usan solo
+ * clases de token (bg-primary, text-on-surface-variant, bg-riesgo-rojo-bg…),
+ * nunca hex ni colores de la paleta de Tailwind (bg-blue-600).
+ * DESIGN.md no define tokens oscuros: por ahora solo hay tema claro.
+ */
+
+/* ───────── Tokens de DESIGN.md ───────── */
+:root {
+  --surface: #f8f9ff;
+  --surface-dim: #cbdbf5;
+  --surface-bright: #f8f9ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #eff4ff;
+  --surface-container: #e5eeff;
+  --surface-container-high: #dce9ff;
+  --surface-container-highest: #d3e4fe;
+  --surface-variant: #d3e4fe;
+  --on-surface: #0b1c30;
+  --on-surface-variant: #434655;
+  --inverse-surface: #213145;
+  --inverse-on-surface: #eaf1ff;
+  --outline: #737686;
+  --outline-variant: #c3c6d7;
+  --surface-tint: #0053db;
+
+  --primary-token: #004ac6;
+  --on-primary: #ffffff;
+  --primary-container: #2563eb;
+  --on-primary-container: #eeefff;
+  --inverse-primary: #b4c5ff;
+  --primary-fixed: #dbe1ff;
+  --primary-fixed-dim: #b4c5ff;
+  --on-primary-fixed: #00174b;
+  --on-primary-fixed-variant: #003ea8;
+
+  --secondary-token: #565e74;
+  --on-secondary: #ffffff;
+  --secondary-container: #dae2fd;
+  --on-secondary-container: #5c647a;
+  --secondary-fixed: #dae2fd;
+  --secondary-fixed-dim: #bec6e0;
+  --on-secondary-fixed: #131b2e;
+  --on-secondary-fixed-variant: #3f465c;
+
+  --tertiary: #006242;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #007d55;
+  --on-tertiary-container: #bdffdb;
+  --tertiary-fixed: #6ffbbe;
+  --tertiary-fixed-dim: #4edea3;
+  --on-tertiary-fixed: #002113;
+  --on-tertiary-fixed-variant: #005236;
+
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
+
+  /* Riesgo / mora (DESIGN.md › Risk Badges) */
+  --riesgo-verde-bg: #ecfdf5;
+  --riesgo-verde-fg: #065f46;
+  --riesgo-verde-borde: #a7f3d0;
+  --riesgo-amarillo-bg: #fffbeb;
+  --riesgo-amarillo-fg: #92400e;
+  --riesgo-amarillo-borde: #fde68a;
+  --riesgo-naranja-bg: #fff7ed;
+  --riesgo-naranja-fg: #9a3412;
+  --riesgo-naranja-borde: #fed7aa;
+  --riesgo-rojo-bg: #fef2f2;
+  --riesgo-rojo-fg: #991b1b;
+  --riesgo-rojo-borde: #fecaca;
+  --riesgo-negro-bg: #09090b;
+  --riesgo-negro-fg: #ffffff;
+  --riesgo-negro-borde: #27272a;
+  --riesgo-negro-anillo: #f43f5e;
+
+  /* ───────── Variables de shadcn → tokens ───────── */
+  --background: var(--surface);
+  --foreground: var(--on-surface);
+  --card: var(--surface-container-lowest);
+  --card-foreground: var(--on-surface);
+  --popover: var(--surface-container-lowest);
+  --popover-foreground: var(--on-surface);
+  --primary: var(--primary-token);
+  --primary-foreground: var(--on-primary);
+  --secondary: var(--secondary-container);
+  --secondary-foreground: var(--on-secondary-fixed);
+  --muted: var(--surface-container-low);
+  --muted-foreground: var(--on-surface-variant);
+  --accent: var(--surface-container);
+  --accent-foreground: var(--on-surface);
+  --destructive: var(--error);
+  --border: var(--outline-variant);
+  --input: var(--outline-variant);
+  --ring: var(--primary-token);
+  --chart-1: var(--primary-token);
+  --chart-2: var(--tertiary);
+  --chart-3: var(--primary-container);
+  --chart-4: var(--tertiary-fixed-dim);
+  --chart-5: var(--secondary-token);
+  --radius: 0.25rem;
+  --sidebar: var(--surface-container-low);
+  --sidebar-foreground: var(--on-surface);
+  --sidebar-primary: var(--primary-container);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: var(--surface-container);
+  --sidebar-accent-foreground: var(--on-surface);
+  --sidebar-border: var(--outline-variant);
+  --sidebar-ring: var(--primary-token);
+}
+
+@theme inline {
+  /* shadcn */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* DESIGN.md */
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-variant: var(--surface-variant);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-surface-tint: var(--surface-tint);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-inverse-primary: var(--inverse-primary);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-secondary-fixed: var(--secondary-fixed);
+  --color-secondary-fixed-dim: var(--secondary-fixed-dim);
+  --color-on-secondary-fixed: var(--on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--on-secondary-fixed-variant);
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
+  --color-on-tertiary-fixed: var(--on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--on-tertiary-fixed-variant);
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+  --color-riesgo-verde-bg: var(--riesgo-verde-bg);
+  --color-riesgo-verde-fg: var(--riesgo-verde-fg);
+  --color-riesgo-verde-borde: var(--riesgo-verde-borde);
+  --color-riesgo-amarillo-bg: var(--riesgo-amarillo-bg);
+  --color-riesgo-amarillo-fg: var(--riesgo-amarillo-fg);
+  --color-riesgo-amarillo-borde: var(--riesgo-amarillo-borde);
+  --color-riesgo-naranja-bg: var(--riesgo-naranja-bg);
+  --color-riesgo-naranja-fg: var(--riesgo-naranja-fg);
+  --color-riesgo-naranja-borde: var(--riesgo-naranja-borde);
+  --color-riesgo-rojo-bg: var(--riesgo-rojo-bg);
+  --color-riesgo-rojo-fg: var(--riesgo-rojo-fg);
+  --color-riesgo-rojo-borde: var(--riesgo-rojo-borde);
+  --color-riesgo-negro-bg: var(--riesgo-negro-bg);
+  --color-riesgo-negro-fg: var(--riesgo-negro-fg);
+  --color-riesgo-negro-borde: var(--riesgo-negro-borde);
+  --color-riesgo-negro-anillo: var(--riesgo-negro-anillo);
+
+  /* Tipografía: Geist para texto, JetBrains Mono para números */
+  --font-sans: var(--font-geist-sans);
+  --font-heading: var(--font-geist-sans);
+  --font-mono: var(--font-jetbrains-mono);
+
+  --text-headline-xl: 28px;
+  --text-headline-xl--line-height: 34px;
+  --text-headline-xl--letter-spacing: -0.02em;
+  --text-headline-xl--font-weight: 600;
+  --text-headline-lg: 20px;
+  --text-headline-lg--line-height: 26px;
+  --text-headline-lg--letter-spacing: -0.015em;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-sm: 15px;
+  --text-headline-sm--line-height: 20px;
+  --text-headline-sm--letter-spacing: -0.01em;
+  --text-headline-sm--font-weight: 600;
+  --text-body-lg: 14px;
+  --text-body-lg--line-height: 20px;
+  --text-body-md: 13px;
+  --text-body-md--line-height: 18px;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-data-currency-primary: 18px;
+  --text-data-currency-primary--line-height: 22px;
+  --text-data-currency-primary--letter-spacing: -0.02em;
+  --text-data-currency-primary--font-weight: 600;
+  --text-data-currency-secondary: 11px;
+  --text-data-currency-secondary--line-height: 14px;
+  --text-data-currency-secondary--font-weight: 500;
+  --text-data-cell: 12px;
+  --text-data-cell--line-height: 16px;
+  --text-label-caps: 10px;
+  --text-label-caps--line-height: 12px;
+  --text-label-caps--letter-spacing: 0.06em;
+  --text-label-caps--font-weight: 600;
+  --text-badge-label: 10px;
+  --text-badge-label--line-height: 12px;
+  --text-badge-label--letter-spacing: 0.02em;
+  --text-badge-label--font-weight: 600;
+
+  /* Espaciado de DESIGN.md (p-gutter, gap-space-md…) */
+  --spacing-gutter: 0.75rem;
+  --spacing-gutter-compact: 0.5rem;
+  --spacing-margin: 1rem;
+  --spacing-margin-panel: 1.25rem;
+  --spacing-space-2xs: 0.125rem;
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.375rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1rem;
+  --spacing-space-xl: 1.5rem;
+
+  /* Radios: base 4px (inputs, botones, cards); modales hasta 8px */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.1875rem;
+  --radius-lg: var(--radius);
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.5rem;
+  --radius-4xl: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

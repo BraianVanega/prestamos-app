@@ -6,6 +6,7 @@ import {
   asientos,
   cargos,
   clientes,
+  conversionLotes,
   cuotas,
   imputaciones,
   pagos,
@@ -16,15 +17,19 @@ import {
 import type { Asiento } from "@/engine/asientos";
 import type { Fecha } from "@/engine/fechas";
 import {
+  aplicarDescuentos,
+  asientosAplicacionSaldo,
   asientosCobroEfectivo,
   asientosIngresoUsdt,
   deudasAFecha,
   ErrorImputacion,
-  imputarPago,
+  imputarCobro,
+  valorSaldoUsdt,
   type CuotaParaCobro,
   type PrestamoParaCobro,
 } from "@/engine/pago";
 import { DECIMALES } from "@/engine/redondeo";
+import { formatearFecha } from "@/lib/formato";
 import { formatearArs, formatearPct } from "@/lib/numeros";
 import { numeroPrestamo } from "@/lib/prestamos";
 
@@ -133,10 +138,77 @@ export async function saldoFavorCliente(l: Lector, clienteId: string): Promise<D
   return new Decimal(fila?.ars ?? 0);
 }
 
+export interface SaldoDePago {
+  pagoId: string;
+  fecha: Fecha;
+  tipo: "transferencia" | "efectivo";
+  /** Saldo a favor que le queda al pago, en ARS. */
+  ars: Decimal;
+  /** Lo que vale en USDT según el libro; null si es efectivo todavía sin convertir. */
+  usdt: Decimal | null;
+  /** Efectivo convertido en parte: no se aplica hasta terminar de convertirlo. */
+  aplicable: boolean;
+}
+
+/**
+ * Saldo a favor del cliente pago por pago, del más viejo al más nuevo. Se aplica
+ * contra su pago de origen: una transferencia (o efectivo ya convertido) aporta
+ * los USDT que registró; el efectivo sin convertir solo cambia la imputación y
+ * la conversión, después, reparte según ella.
+ */
+export async function saldosAFavor(l: Lector, clienteId: string): Promise<SaldoDePago[]> {
+  const filas = await l
+    .select({
+      pagoId: pagos.id,
+      fecha: pagos.fecha,
+      tipo: pagos.tipo,
+      pagoArs: pagos.ars,
+      ars: sql<string>`sum(${imputaciones.ars})`,
+    })
+    .from(imputaciones)
+    .innerJoin(pagos, eq(pagos.id, imputaciones.pagoId))
+    .where(and(eq(pagos.clienteId, clienteId), eq(imputaciones.concepto, "saldo_favor"), notInArray(pagos.id, pagosAnulados(l))))
+    .groupBy(pagos.id)
+    .having(sql`sum(${imputaciones.ars}) > 0`)
+    .orderBy(asc(pagos.fecha), asc(pagos.creadoEn));
+  if (filas.length === 0) return [];
+  const ids = filas.map((f) => f.pagoId);
+
+  const conversionesAnuladas = l.select({ id: anulaciones.entidadId }).from(anulaciones).where(eq(anulaciones.entidad, "conversiones"));
+  const [libro, convertido] = await Promise.all([
+    l
+      .select({ pagoId: transacciones.pagoId, usdt: sql<string>`-sum(${asientos.monto})` })
+      .from(asientos)
+      .innerJoin(transacciones, eq(transacciones.id, asientos.transaccionId))
+      .where(and(inArray(transacciones.pagoId, ids), eq(asientos.cuenta, "saldo_favor")))
+      .groupBy(transacciones.pagoId),
+    l
+      .select({ pagoId: conversionLotes.pagoId, ars: sql<string>`sum(${conversionLotes.ars})` })
+      .from(conversionLotes)
+      .where(and(inArray(conversionLotes.pagoId, ids), notInArray(conversionLotes.conversionId, conversionesAnuladas)))
+      .groupBy(conversionLotes.pagoId),
+  ]);
+
+  return filas.map((f) => {
+    const usdt = new Decimal(libro.find((x) => x.pagoId === f.pagoId)?.usdt ?? 0);
+    const conv = new Decimal(convertido.find((x) => x.pagoId === f.pagoId)?.ars ?? 0);
+    const sinConvertir = f.tipo === "efectivo" && conv.isZero();
+    return {
+      pagoId: f.pagoId,
+      fecha: f.fecha,
+      tipo: f.tipo,
+      ars: new Decimal(f.ars),
+      usdt: sinConvertir ? null : usdt,
+      aplicable: f.tipo === "transferencia" || sinConvertir || conv.eq(f.pagoArs),
+    };
+  });
+}
+
 export interface NuevoPago {
   clienteId: string;
   fecha: Fecha;
   tipo: "transferencia" | "efectivo";
+  /** Monto cobrado ahora; 0 si solo se aplica saldo a favor. */
   ars: Decimal;
   /** Solo transferencia. */
   tcSalida: Decimal | null;
@@ -144,6 +216,11 @@ export interface NuevoPago {
   notas: string | null;
   /** Monto a imputar por clave de deuda (ver `deudasAFecha`). */
   montos: Map<string, Decimal>;
+  /** Aplicar el saldo a favor del cliente antes que el pago nuevo. */
+  usarSaldo: boolean;
+  /** Descuento por clave de deuda (baja mora y después interés). */
+  descuentos: Map<string, Decimal>;
+  motivoDescuento: string | null;
 }
 
 export { ErrorImputacion };
@@ -159,117 +236,166 @@ const filaAsiento = (transaccionId: string, a: Asiento) => ({
 });
 
 /**
- * Registra un pago completo dentro de la transacción recibida: mora que nace a la
- * fecha (cargos), pago, imputaciones, transacción de cobro con sus asientos y
- * cierre de los préstamos que quedan saldados. La deuda se vuelve a calcular acá
- * con el cliente bloqueado, así dos pagos simultáneos no imputan lo mismo.
- * Lanza `ErrorImputacion` si los montos no cierran con la deuda actual.
+ * Registra un cobro completo dentro de la transacción recibida: mora que nace a
+ * la fecha y descuentos (cargos), saldo a favor aplicado (imputaciones contra su
+ * pago de origen + asientos), pago nuevo con sus imputaciones, transacción de
+ * cobro y asientos, y cierre de los préstamos que quedan saldados. La deuda se
+ * vuelve a calcular acá con el cliente bloqueado, así dos pagos simultáneos no
+ * imputan lo mismo. Lanza `ErrorImputacion` si los montos no cierran con la deuda actual.
  */
 export async function insertarPago(
   tx: Tx,
   d: NuevoPago,
   ctx: { usuarioId: string },
-): Promise<{ pagoId: string; prestamos: string[]; cancelados: string[] }> {
+): Promise<{ pagoId: string | null; prestamos: string[]; cancelados: string[] }> {
   const [cliente] = await tx
     .select({ id: clientes.id, nombre: clientes.nombre })
     .from(clientes)
     .where(eq(clientes.id, d.clienteId))
     .for("update");
   if (!cliente) throw new ErrorImputacion("El cliente no existe.");
-  if ((d.tipo === "transferencia") !== (d.tcSalida !== null)) throw new ErrorImputacion("El TC va solo en transferencias.");
+  if (d.ars.gt(0) && (d.tipo === "transferencia") !== (d.tcSalida !== null)) throw new ErrorImputacion("El TC va solo en transferencias.");
 
   const deuda = await cargarDeudaCliente(tx, d.clienteId);
-  const { deudas, moraNueva } = deudasAFecha(deuda, d.fecha);
-  const imp = imputarPago(d.ars, deudas, d.montos);
+  const aFecha = deudasAFecha(deuda, d.fecha);
+  const { deudas, descuentos } = aplicarDescuentos(aFecha.deudas, d.descuentos);
+  if (descuentos.length && !d.motivoDescuento) throw new ErrorImputacion("Indicá el motivo del descuento.");
+  const saldos = d.usarSaldo ? (await saldosAFavor(tx, d.clienteId)).filter((x) => x.aplicable) : [];
+  const imp = imputarCobro({ deudas, montos: d.montos, nuevo: d.ars, saldos });
   const numeros = new Map(deuda.map((p) => [p.id, p.numero]));
+  const conCuota = new Map(aFecha.deudas.map((x) => [x.cuotaId, x.cuotaNumero]));
 
-  if (moraNueva.length) {
-    await tx.insert(cargos).values(
-      moraNueva.map((m) => ({
-        prestamoId: m.prestamoId,
-        cuotaId: m.cuotaId,
-        fecha: m.fecha,
-        tipo: "mora" as const,
-        ars: m.ars.toFixed(DECIMALES.ars),
-        motivo: `Mora ${formatearPct(m.moraPct)}% sobre $${formatearArs(m.base)} de capital impago (cuota ${m.cuotaNumero})`,
+  const nuevosCargos = [
+    ...aFecha.moraNueva.map((m) => ({
+      prestamoId: m.prestamoId,
+      cuotaId: m.cuotaId,
+      fecha: m.fecha,
+      tipo: "mora" as const,
+      ars: m.ars.toFixed(DECIMALES.ars),
+      motivo: `Mora ${formatearPct(m.moraPct)}% sobre $${formatearArs(m.base)} de capital impago (cuota ${m.cuotaNumero})`,
+    })),
+    ...descuentos.map((x) => ({
+      prestamoId: x.prestamoId,
+      cuotaId: x.cuotaId,
+      fecha: d.fecha,
+      tipo: "descuento" as const,
+      ars: x.ars.neg().toFixed(DECIMALES.ars),
+      motivo: `${d.motivoDescuento} (${x.cuotaId ? `cuota ${conCuota.get(x.cuotaId)}` : "cargos"})`,
+    })),
+  ];
+  if (nuevosCargos.length) {
+    await tx.insert(cargos).values(nuevosCargos.map((c) => ({ ...c, creadoPor: ctx.usuarioId })));
+  }
+
+  // Cartera y participaciones de los préstamos que reciben algo; la cartera se
+  // actualiza en memoria a medida que cada parte recupera costo.
+  const ids = [...new Set([...imp.aplicaciones, ...(imp.pago ? [imp.pago] : [])].flatMap((f) => f.porPrestamo.map((p) => p.prestamoId)))];
+  const [carteras, partes] = ids.length
+    ? await Promise.all([
+        tx
+          .select({ prestamoId: asientos.prestamoId, monto: sql<string>`sum(${asientos.monto})` })
+          .from(asientos)
+          .where(and(inArray(asientos.prestamoId, ids), eq(asientos.cuenta, "cartera")))
+          .groupBy(asientos.prestamoId),
+        tx.select().from(prestamoParticipaciones).where(inArray(prestamoParticipaciones.prestamoId, ids)),
+      ])
+    : [[], []];
+  const cartera = new Map<string, Decimal.Value>(carteras.map((c) => [c.prestamoId!, c.monto]));
+  const participaciones = new Map(
+    ids.map((id) => [
+      id,
+      partes.filter((x) => x.prestamoId === id).map((x) => ({ participanteId: x.participanteId, pctGanancia: x.pctGanancia })),
+    ]),
+  );
+  const asentar = async (transaccionId: string, lineas: Asiento[]) => {
+    for (const a of lineas) if (a.cuenta === "cartera") cartera.set(a.prestamoId!, new Decimal(cartera.get(a.prestamoId!) ?? 0).plus(a.monto));
+    await tx.insert(asientos).values(lineas.map((a) => filaAsiento(transaccionId, a)));
+  };
+  const destino = (porPrestamo: { prestamoId: string }[], saldo: boolean) =>
+    [...porPrestamo.map((p) => numeroPrestamo(numeros.get(p.prestamoId)!)), ...(saldo ? ["saldo a favor"] : [])].join(", ");
+  const filaImputacion = (pagoId: string) => (l: (typeof imp.aplicaciones)[number]["lineas"][number]) => ({
+    pagoId,
+    fecha: d.fecha,
+    prestamoId: l.prestamoId,
+    cuotaId: l.cuotaId,
+    concepto: l.concepto,
+    ars: l.ars.toFixed(DECIMALES.ars),
+    creadoPor: ctx.usuarioId,
+  });
+
+  // 1. Saldo a favor aplicado, del pago más viejo al más nuevo.
+  for (const a of imp.aplicaciones) {
+    const origen = saldos.find((x) => x.pagoId === a.pagoId)!;
+    await tx.insert(imputaciones).values(a.lineas.map(filaImputacion(origen.pagoId)));
+    if (origen.usdt === null) continue; // efectivo sin convertir: la conversión lo realiza
+    const [t] = await tx
+      .insert(transacciones)
+      .values({
+        fecha: d.fecha,
+        tipo: "aplicacion_saldo_favor",
+        descripcion: `Aplicación de saldo a favor de $${formatearArs(a.aplicado)} (pago del ${formatearFecha(origen.fecha)}) → ${destino(a.porPrestamo, false)}`,
+        prestamoId: a.porPrestamo.length === 1 ? a.porPrestamo[0]!.prestamoId : null,
+        pagoId: origen.pagoId,
         creadoPor: ctx.usuarioId,
-      })),
+      })
+      .returning({ id: transacciones.id });
+    await asentar(
+      t!.id,
+      asientosAplicacionSaldo({
+        usdt: valorSaldoUsdt(a.aplicado, origen.ars, origen.usdt),
+        porPrestamo: a.porPrestamo,
+        clienteId: d.clienteId,
+        cartera,
+        participaciones,
+      }).asientos,
     );
   }
 
-  const [pago] = await tx
-    .insert(pagos)
-    .values({
-      clienteId: d.clienteId,
-      fecha: d.fecha,
-      ars: d.ars.toFixed(DECIMALES.ars),
-      tipo: d.tipo,
-      tcSalida: d.tcSalida?.toFixed(DECIMALES.tc) ?? null,
-      metodo: d.metodo,
-      notas: d.notas,
-      creadoPor: ctx.usuarioId,
-    })
-    .returning({ id: pagos.id });
-  const pagoId = pago!.id;
+  // 2. El pago nuevo.
+  let pagoId: string | null = null;
+  if (imp.pago) {
+    const [pago] = await tx
+      .insert(pagos)
+      .values({
+        clienteId: d.clienteId,
+        fecha: d.fecha,
+        ars: d.ars.toFixed(DECIMALES.ars),
+        tipo: d.tipo,
+        tcSalida: d.tcSalida?.toFixed(DECIMALES.tc) ?? null,
+        metodo: d.metodo,
+        notas: d.notas,
+        creadoPor: ctx.usuarioId,
+      })
+      .returning({ id: pagos.id });
+    pagoId = pago!.id;
+    await tx.insert(imputaciones).values(imp.pago.lineas.map(filaImputacion(pagoId)));
 
-  await tx.insert(imputaciones).values(
-    imp.lineas.map((l) => ({
-      pagoId,
-      fecha: d.fecha,
-      prestamoId: l.prestamoId,
-      cuotaId: l.cuotaId,
-      concepto: l.concepto,
-      ars: l.ars.toFixed(DECIMALES.ars),
-      creadoPor: ctx.usuarioId,
-    })),
-  );
-
-  const ids = imp.porPrestamo.map((p) => p.prestamoId);
-  const destino = [
-    ...ids.map((id) => numeroPrestamo(numeros.get(id)!)),
-    ...(imp.saldoFavor.gt(0) ? ["saldo a favor"] : []),
-  ].join(", ");
-  const [transaccion] = await tx
-    .insert(transacciones)
-    .values({
-      fecha: d.fecha,
-      tipo: "cobro",
-      descripcion: `Cobro ${d.tipo === "efectivo" ? "en efectivo" : "por transferencia"} de $${formatearArs(d.ars)} → ${destino}`,
-      prestamoId: ids.length === 1 ? ids[0] : null,
-      pagoId,
-      creadoPor: ctx.usuarioId,
-    })
-    .returning({ id: transacciones.id });
-
-  let lineas: Asiento[];
-  if (d.tipo === "efectivo") {
-    lineas = asientosCobroEfectivo(d.ars);
-  } else {
-    const [carteras, partes] = ids.length
-      ? await Promise.all([
-          tx
-            .select({ prestamoId: asientos.prestamoId, monto: sql<string>`sum(${asientos.monto})` })
-            .from(asientos)
-            .where(and(inArray(asientos.prestamoId, ids), eq(asientos.cuenta, "cartera")))
-            .groupBy(asientos.prestamoId),
-          tx.select().from(prestamoParticipaciones).where(inArray(prestamoParticipaciones.prestamoId, ids)),
-        ])
-      : [[], []];
-    lineas = asientosIngresoUsdt({
-      tc: d.tcSalida!,
-      porPrestamo: imp.porPrestamo,
-      saldoFavorArs: imp.saldoFavor,
-      clienteId: d.clienteId,
-      cartera: new Map(carteras.map((c) => [c.prestamoId!, c.monto])),
-      participaciones: new Map(
-        ids.map((id) => [
-          id,
-          partes.filter((x) => x.prestamoId === id).map((x) => ({ participanteId: x.participanteId, pctGanancia: x.pctGanancia })),
-        ]),
-      ),
-    }).asientos;
+    const porPrestamo = imp.pago.porPrestamo;
+    const [t] = await tx
+      .insert(transacciones)
+      .values({
+        fecha: d.fecha,
+        tipo: "cobro",
+        descripcion: `Cobro ${d.tipo === "efectivo" ? "en efectivo" : "por transferencia"} de $${formatearArs(d.ars)} → ${destino(porPrestamo, imp.pago.saldoFavor.gt(0))}`,
+        prestamoId: porPrestamo.length === 1 ? porPrestamo[0]!.prestamoId : null,
+        pagoId,
+        creadoPor: ctx.usuarioId,
+      })
+      .returning({ id: transacciones.id });
+    await asentar(
+      t!.id,
+      d.tipo === "efectivo"
+        ? asientosCobroEfectivo(d.ars)
+        : asientosIngresoUsdt({
+            tc: d.tcSalida!,
+            porPrestamo,
+            saldoFavorArs: imp.pago.saldoFavor,
+            clienteId: d.clienteId,
+            cartera,
+            participaciones,
+          }).asientos,
+    );
   }
-  await tx.insert(asientos).values(lineas.map((a) => filaAsiento(transaccion!.id, a)));
 
   if (imp.cancelados.length) {
     await tx
@@ -278,5 +404,5 @@ export async function insertarPago(
       .where(inArray(prestamos.id, imp.cancelados));
   }
 
-  return { pagoId, prestamos: ids, cancelados: imp.cancelados };
+  return { pagoId, prestamos: [...new Set([...ids, ...imp.cancelados])], cancelados: imp.cancelados };
 }

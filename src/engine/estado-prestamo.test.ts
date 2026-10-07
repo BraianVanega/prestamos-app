@@ -1,5 +1,6 @@
+import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
-import { atrasoPctDelPlazo, estadoCuotas, nivelRiesgo, recuperadoUsdt, saldoExigible, type CuotaConPagos } from "./estado-prestamo";
+import { atrasoPctDelPlazo, cargosDeCuota, estadoCuotas, nivelRiesgo, recuperadoUsdt, saldoExigible, type CuotaConPagos } from "./estado-prestamo";
 
 const cuota = (numero: number, vencimiento: string, pagado: [string, string] = ["0", "0"]): CuotaConPagos => ({
   id: `c${numero}`,
@@ -69,6 +70,21 @@ describe("estadoCuotas", () => {
   it("un sobrepago no deja saldos negativos", () => {
     const e = estadoCuotas([cuota(1, "2026-10-01", ["1500", "300"])], "2026-10-20");
     expect(e.saldoArs.toFixed(2)).toBe("0.00");
+  });
+});
+
+describe("cargosDeCuota + descuento en el interés", () => {
+  it("el descuento baja primero la mora pendiente y lo que sobra, el interés", () => {
+    // mora 200 sin pagar, descuento 50 → queda mora 150
+    expect(Object.values(cargosDeCuota(new Decimal(200).minus(50), "0")).map((d) => d.toFixed(2))).toEqual(["150.00", "0.00"]);
+    // mora 200 ya pagada, descuento 50 → baja 50 de interés
+    expect(Object.values(cargosDeCuota(new Decimal(200).minus(50), "200")).map((d) => d.toFixed(2))).toEqual(["0.00", "50.00"]);
+  });
+
+  it("una cuota con el interés descontado queda pagada", () => {
+    const e = estadoCuotas([{ ...cuota(1, "2026-10-01", ["1000", "150"]), descuentoInteres: "50" }], "2026-10-20");
+    expect(e.cuotas[0]!.situacion).toBe("pagada");
+    expect(e.diasAtraso).toBe(0);
   });
 });
 

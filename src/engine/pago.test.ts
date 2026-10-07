@@ -1,12 +1,16 @@
 import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
 import {
+  aplicarDescuentos,
+  asientosAplicacionSaldo,
   asientosCobroEfectivo,
   asientosIngresoUsdt,
   deudasAFecha,
   distribuirFifo,
   ErrorImputacion,
+  imputarCobro,
   imputarPago,
+  valorSaldoUsdt,
   type CuotaParaCobro,
   type PrestamoParaCobro,
 } from "./pago";
@@ -134,6 +138,104 @@ describe("distribuirFifo + imputarPago", () => {
     expect(() => imputarPago("100", deudas, new Map([["A:a1", "-1"]]))).toThrow(/negativo/);
     expect(() => imputarPago("100", deudas, new Map([["A:a1", "1.005"]]))).toThrow(/decimales/);
     expect(() => imputarPago("0", deudas, new Map())).toThrow();
+  });
+});
+
+describe("aplicarDescuentos", () => {
+  const { deudas } = deudasAFecha([prestamo("A", 1, [cuota("a1", 1, "2026-10-01"), cuota("a2", 2, "2026-11-01")])], "2026-10-08");
+
+  it("baja mora y después interés; si cubre todo el resto, el préstamo se cancela", () => {
+    const r = aplicarDescuentos(deudas, new Map([["A:a1", "300"], ["A:a2", "200"]]));
+    expect(r.deudas.map((d) => [fx(d.mora), fx(d.interes), fx(d.total)])).toEqual([
+      ["0.00", "100.00", "1100.00"],
+      ["0.00", "0.00", "1000.00"],
+    ]);
+    expect(r.descuentos.map((d) => [d.cuotaId, fx(d.ars)])).toEqual([["a1", "300.00"], ["a2", "200.00"]]);
+    const imp = imputarPago("2100", r.deudas, distribuirFifo("2100", r.deudas));
+    expect(imp.cancelados).toEqual(["A"]);
+    expect(fx(imp.saldoFavor)).toBe("0.00");
+  });
+
+  it("no descuenta capital ni acepta claves desconocidas", () => {
+    expect(() => aplicarDescuentos(deudas, new Map([["A:a1", "401"]]))).toThrow(/supera/);
+    expect(() => aplicarDescuentos(deudas, new Map([["A:zz", "1"]]))).toThrow(/cambió/);
+    expect(() => aplicarDescuentos(deudas, new Map([["A:a1", "-1"]]))).toThrow(/negativo/);
+  });
+});
+
+describe("imputarCobro (saldo a favor + pago nuevo)", () => {
+  const { deudas } = deudasAFecha([prestamo("A", 1, [cuota("a1", 1, "2026-10-01"), cuota("a2", 2, "2026-11-01")])], "2026-10-08");
+  // a1: 1400 (mora 200), a2: 1200
+
+  it("consume primero el saldo más viejo, después el nuevo, partiendo líneas", () => {
+    const r = imputarCobro({
+      deudas,
+      montos: distribuirFifo("1700", deudas),
+      nuevo: "1000",
+      saldos: [
+        { pagoId: "P1", ars: "300" },
+        { pagoId: "P2", ars: "500" },
+      ],
+    });
+    expect(r.aplicaciones.map((a) => [a.pagoId, a.lineas.map((l) => [l.cuotaId, l.concepto, fx(l.ars)])])).toEqual([
+      ["P1", [["a1", "mora", "200.00"], ["a1", "interes", "100.00"], [null, "saldo_favor", "-300.00"]]],
+      ["P2", [["a1", "interes", "100.00"], ["a1", "capital", "400.00"], [null, "saldo_favor", "-500.00"]]],
+    ]);
+    expect(r.pago!.lineas.map((l) => [l.cuotaId, l.concepto, fx(l.ars)])).toEqual([
+      ["a1", "capital", "600.00"],
+      ["a2", "interes", "200.00"],
+      ["a2", "capital", "100.00"],
+      [null, "saldo_favor", "100.00"],
+    ]);
+    expect(fx(r.pago!.saldoFavor)).toBe("100.00");
+  });
+
+  it("solo saldo a favor: sin pago nuevo y el saldo que no se usa queda", () => {
+    const r = imputarCobro({ deudas, montos: new Map([["A:a1", "250"]]), nuevo: "0", saldos: [{ pagoId: "P1", ars: "300" }] });
+    expect(r.pago).toBeNull();
+    expect(r.aplicaciones[0]!.aplicado.toFixed(2)).toBe("250.00");
+    expect(r.aplicaciones[0]!.lineas.at(-1)).toMatchObject({ concepto: "saldo_favor" });
+    expect(fx(r.aplicaciones[0]!.lineas.at(-1)!.ars)).toBe("-250.00");
+  });
+
+  it("valida: nada que aplicar o más de lo disponible", () => {
+    expect(() => imputarCobro({ deudas, montos: new Map(), nuevo: "0", saldos: [] })).toThrow(/monto/);
+    expect(() => imputarCobro({ deudas, montos: new Map(), nuevo: "0", saldos: [{ pagoId: "P1", ars: "300" }] })).toThrow(/cuotas/);
+    expect(() => imputarCobro({ deudas, montos: new Map([["A:a1", "400"]]), nuevo: "0", saldos: [{ pagoId: "P1", ars: "300" }] })).toThrow(
+      /supera/,
+    );
+  });
+});
+
+describe("saldo a favor en USDT", () => {
+  it("valorSaldoUsdt: proporcional, exacto al aplicar todo", () => {
+    expect(valorSaldoUsdt("1000", "3000", "1").toFixed(8)).toBe("0.33333333");
+    expect(valorSaldoUsdt("3000", "3000", "1").toFixed(8)).toBe("1.00000000");
+    expect(() => valorSaldoUsdt("3001", "3000", "1")).toThrow();
+  });
+
+  it("asientosAplicacionSaldo: baja saldo_favor, recupera costo y reconoce ganancia", () => {
+    const { asientos, prestamos } = asientosAplicacionSaldo({
+      usdt: "10",
+      porPrestamo: [
+        { prestamoId: "A", ars: "1000" },
+        { prestamoId: "B", ars: "3000" },
+      ],
+      clienteId: "C",
+      cartera: new Map([
+        ["A", "1"],
+        ["B", "100"],
+      ]),
+      participaciones: new Map([["A", [{ participanteId: "S", pctGanancia: "100" }]]]),
+    });
+    expect(asientos.map((a) => [a.cuenta, a.prestamoId ?? a.clienteId, a.monto.toFixed(2)])).toEqual([
+      ["saldo_favor", "C", "10.00"],
+      ["cartera", "A", "-1.00"],
+      ["ganancia", "A", "-1.50"],
+      ["cartera", "B", "-7.50"],
+    ]);
+    expect(asientos.reduce((s, a) => s.plus(a.monto), new Decimal(0)).isZero()).toBe(true);
+    expect(prestamos.map((p) => p.ganancia.toFixed(2))).toEqual(["1.50", "0.00"]);
   });
 });
 

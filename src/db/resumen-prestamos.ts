@@ -5,6 +5,7 @@ import { db } from "./index";
 import {
   anulaciones,
   asientos,
+  cargos,
   clientes,
   cuotas,
   imputaciones,
@@ -12,7 +13,7 @@ import {
   prestamoParticipaciones,
   prestamos,
 } from "./schema";
-import { estadoCuotas, nivelRiesgo, recuperadoUsdt, type EstadoCuotas, type NivelRiesgo } from "@/engine/estado-prestamo";
+import { cargosDeCuota, estadoCuotas, nivelRiesgo, recuperadoUsdt, type EstadoCuotas, type NivelRiesgo } from "@/engine/estado-prestamo";
 import { diasEntre, type Fecha } from "@/engine/fechas";
 
 export interface ResumenPrestamo {
@@ -77,7 +78,8 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
   if (filas.length === 0) return [];
   const ids = filas.map((f) => f.id);
 
-  const [planes, pagado, libro, partes, socios] = await Promise.all([
+  const cargosAnulados = db.select({ id: anulaciones.entidadId }).from(anulaciones).where(eq(anulaciones.entidad, "cargos"));
+  const [planes, pagado, cargosCuota, libro, partes, socios] = await Promise.all([
     db.select().from(cuotas).where(inArray(cuotas.prestamoId, ids)),
     db
       .select({
@@ -89,11 +91,16 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
       .where(
         and(
           inArray(imputaciones.prestamoId, ids),
-          inArray(imputaciones.concepto, ["capital", "interes"]),
+          inArray(imputaciones.concepto, ["capital", "interes", "mora"]),
           notInArray(imputaciones.pagoId, pagosAnulados),
         ),
       )
       .groupBy(imputaciones.cuotaId, imputaciones.concepto),
+    db
+      .select({ cuotaId: cargos.cuotaId, ars: sql<string>`sum(${cargos.ars})` })
+      .from(cargos)
+      .where(and(inArray(cargos.prestamoId, ids), notInArray(cargos.id, cargosAnulados)))
+      .groupBy(cargos.cuotaId),
     db
       .select({
         prestamoId: asientos.prestamoId,
@@ -115,14 +122,16 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
       .orderBy(participantes.nombre),
   ]);
 
-  const pagadoPorCuota = new Map<string, { capital: string; interes: string }>();
+  const pagadoPorCuota = new Map<string, { capital: string; interes: string; mora: string }>();
   for (const p of pagado) {
     if (!p.cuotaId) continue;
-    const actual = pagadoPorCuota.get(p.cuotaId) ?? { capital: "0", interes: "0" };
+    const actual = pagadoPorCuota.get(p.cuotaId) ?? { capital: "0", interes: "0", mora: "0" };
     if (p.concepto === "capital") actual.capital = p.ars;
     if (p.concepto === "interes") actual.interes = p.ars;
+    if (p.concepto === "mora") actual.mora = p.ars;
     pagadoPorCuota.set(p.cuotaId, actual);
   }
+  const cargosPorCuota = new Map(cargosCuota.flatMap((c) => (c.cuotaId ? [[c.cuotaId, c.ars] as const] : [])));
 
   const agrupar = <T extends { prestamoId: string | null }>(xs: T[]) => {
     const m = new Map<string, T[]>();
@@ -143,6 +152,7 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
         arsInteres: c.arsInteres,
         pagadoCapital: pagadoPorCuota.get(c.id)?.capital ?? "0",
         pagadoInteres: pagadoPorCuota.get(c.id)?.interes ?? "0",
+        descuentoInteres: cargosDeCuota(cargosPorCuota.get(c.id) ?? "0", pagadoPorCuota.get(c.id)?.mora ?? "0").descuentoInteres,
       })),
       hoy,
     );

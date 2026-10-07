@@ -11,6 +11,9 @@ const base = {
   metodo: " Banco ",
   notas: "",
   montos: JSON.stringify({ [`${id}:${id}`]: "216000.00", [`${id}:cargos`]: "10" }),
+  usarSaldo: "",
+  descuentos: "",
+  motivoDescuento: "",
 };
 
 describe("esquemaPago", () => {
@@ -42,5 +45,21 @@ describe("esquemaPago", () => {
   it("monto obligatorio y positivo", () => {
     expect(esquemaPago.safeParse({ ...base, ars: "0" }).success).toBe(false);
     expect(esquemaPago.safeParse({ ...base, ars: "" }).success).toBe(false);
+  });
+
+  it("aplicando saldo a favor el monto puede quedar vacío (sin TC)", () => {
+    const r = esquemaPago.parse({ ...base, usarSaldo: "on", ars: "", tcSalida: "" });
+    expect(r.ars.isZero()).toBe(true);
+    expect(r.tcSalida).toBeNull();
+    expect(r.usarSaldo).toBe(true);
+    expect(esquemaPago.safeParse({ ...base, usarSaldo: "on", ars: "-1" }).success).toBe(false);
+  });
+
+  it("descuentos: piden motivo", () => {
+    const descuentos = JSON.stringify({ [`${id}:${id}`]: "5000" });
+    const sin = esquemaPago.safeParse({ ...base, descuentos });
+    expect(sin.error!.issues[0]!.path).toEqual(["motivoDescuento"]);
+    const con = esquemaPago.parse({ ...base, descuentos, motivoDescuento: " Pago adelantado " });
+    expect([con.descuentos[`${id}:${id}`], con.motivoDescuento]).toEqual(["5000", "Pago adelantado"]);
   });
 });

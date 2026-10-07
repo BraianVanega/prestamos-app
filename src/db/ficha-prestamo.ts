@@ -17,6 +17,7 @@ import {
   usuarios,
 } from "./schema";
 import {
+  cargosDeCuota,
   estadoCuotas,
   nivelRiesgo,
   recuperadoUsdt,
@@ -203,6 +204,20 @@ export async function cargarFichaPrestamo(id: string, hoy: Fecha): Promise<Ficha
       ultimoPagoPorCuota.set(i.cuotaId, { fecha: i.fecha, tipo: i.tipo, tcSalida: i.tcSalida ? new Decimal(i.tcSalida) : null });
     }
   }
+  // Cargos por cuota: mora pendiente, o descuento que baja el interés.
+  const cargosVigentes = filasCargos.filter((c) => !c.anulado);
+  const sumar = (xs: { ars: string }[]) => xs.reduce((s, x) => s.plus(x.ars), new Decimal(0));
+  const moraImputada = vigentes.filter((i) => i.concepto === "mora");
+  const cargosPorCuota = new Map(
+    plan.map((c) => [
+      c.id,
+      cargosDeCuota(
+        sumar(cargosVigentes.filter((x) => x.cuotaId === c.id)),
+        sumar(moraImputada.filter((i) => i.cuotaId === c.id)),
+      ),
+    ]),
+  );
+
   const estado = estadoCuotas(
     plan.map((c) => ({
       id: c.id,
@@ -212,6 +227,7 @@ export async function cargarFichaPrestamo(id: string, hoy: Fecha): Promise<Ficha
       arsInteres: c.arsInteres,
       pagadoCapital: porCuota.get(c.id)?.capital ?? "0",
       pagadoInteres: porCuota.get(c.id)?.interes ?? "0",
+      descuentoInteres: cargosPorCuota.get(c.id)!.descuentoInteres,
     })),
     hoy,
   );
@@ -246,8 +262,11 @@ export async function cargarFichaPrestamo(id: string, hoy: Fecha): Promise<Ficha
       : [];
   const saldo = saldoExigible({
     saldoPlan: estado.saldoArs,
-    cargos: cargosFicha.filter((c) => !c.anulado).map((c) => c.ars),
-    imputadoCargos: vigentes.filter((i) => i.concepto === "mora").reduce((s, i) => s.plus(i.ars), new Decimal(0)),
+    cargos: [
+      ...[...cargosPorCuota.values()].map((c) => c.mora),
+      ...cargosVigentes.filter((c) => !c.cuotaId).map((c) => c.ars),
+    ],
+    imputadoCargos: sumar(moraImputada.filter((i) => !i.cuotaId)),
     moraACargar: moraPendiente.map((m) => m.ars),
   });
 

@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import type { Asiento } from "./asientos";
+import { cargosDeCuota } from "./estado-prestamo";
 import type { Fecha } from "./fechas";
 import { moraACargar, type MoraACargar } from "./mora";
 import { DECIMALES, redondearUsdt } from "./redondeo";
@@ -82,8 +83,8 @@ export function deudasAFecha(prestamos: PrestamoParaCobro[], fecha: Fecha): { de
     const moraPorCuota = new Map(nuevas.map((m) => [m.cuotaId, m.ars]));
 
     for (const c of p.cuotas) {
-      const mora = pos(new Decimal(c.cargos).plus(moraPorCuota.get(c.id) ?? 0).minus(c.pagadoCargos));
-      const interes = pos(new Decimal(c.arsInteres).minus(c.pagadoInteres));
+      const { mora, descuentoInteres } = cargosDeCuota(new Decimal(c.cargos).plus(moraPorCuota.get(c.id) ?? 0), c.pagadoCargos);
+      const interes = pos(new Decimal(c.arsInteres).minus(c.pagadoInteres).minus(descuentoInteres));
       const capital = pos(new Decimal(c.arsCapital).minus(c.pagadoCapital));
       const total = mora.plus(interes).plus(capital);
       if (total.isZero()) continue;
@@ -145,6 +146,38 @@ export function distribuirFifo(ars: Decimal.Value, deudas: Deuda[]): Map<string,
   return montos;
 }
 
+export interface Descuento {
+  prestamoId: string;
+  cuotaId: string | null;
+  /** Monto positivo a descontar (se registra como cargo negativo). */
+  ars: Decimal;
+}
+
+/**
+ * Descuentos caso por caso sobre la deuda (p. ej. por pago adelantado): bajan
+ * primero la mora y después el interés de la fila; el capital no se descuenta.
+ * Devuelve la deuda ya descontada (las filas quedan aunque lleguen a 0).
+ */
+export function aplicarDescuentos(deudas: Deuda[], descuentos: Map<string, Decimal.Value>): { deudas: Deuda[]; descuentos: Descuento[] } {
+  const claves = new Set(deudas.map((d) => d.clave));
+  for (const clave of descuentos.keys()) {
+    if (!claves.has(clave)) throw new ErrorImputacion("La deuda del cliente cambió: volvé a cargar la pantalla.");
+  }
+  const lista: Descuento[] = [];
+  const resultado = deudas.map((d) => {
+    const ars = new Decimal(descuentos.get(d.clave) ?? 0);
+    if (ars.isZero()) return d;
+    if (ars.lt(0)) throw new ErrorImputacion("Un descuento es negativo.");
+    if (ars.decimalPlaces() > DECIMALES.ars) throw new ErrorImputacion("Los descuentos van con 2 decimales como máximo.");
+    if (ars.gt(d.mora.plus(d.interes))) throw new ErrorImputacion("Un descuento supera la mora más el interés de la cuota.");
+    lista.push({ prestamoId: d.prestamoId, cuotaId: d.cuotaId, ars });
+    const mora = Decimal.max(d.mora.minus(ars), 0);
+    const interes = d.interes.minus(ars.minus(d.mora.minus(mora)));
+    return { ...d, mora, interes, total: mora.plus(interes).plus(d.capital) };
+  });
+  return { deudas: resultado, descuentos: lista };
+}
+
 export type Concepto = "capital" | "interes" | "mora" | "saldo_favor";
 
 export interface LineaImputacion {
@@ -202,15 +235,92 @@ export function imputarPago(arsPago: Decimal.Value, deudas: Deuda[], montos: Map
   const saldoFavor = total.minus(imputado);
   if (saldoFavor.gt(0)) lineas.push({ prestamoId: null, cuotaId: null, concepto: "saldo_favor", ars: saldoFavor });
 
-  const deudaPorPrestamo = new Map<string, Decimal>();
-  for (const d of deudas) deudaPorPrestamo.set(d.prestamoId, (deudaPorPrestamo.get(d.prestamoId) ?? new Decimal(0)).plus(d.total));
-  const cancelados = [...porPrestamo].filter(([id, ars]) => ars.eq(deudaPorPrestamo.get(id)!)).map(([id]) => id);
+  // Se cancela el préstamo que queda sin deuda (por lo imputado o por un descuento).
+  const restante = new Map<string, Decimal>();
+  for (const d of deudas) restante.set(d.prestamoId, (restante.get(d.prestamoId) ?? new Decimal(0)).plus(d.total));
+  for (const [id, ars] of porPrestamo) restante.set(id, restante.get(id)!.minus(ars));
+  const cancelados = [...restante].filter(([, ars]) => ars.isZero()).map(([id]) => id);
 
   return {
     lineas,
     porPrestamo: [...porPrestamo].map(([prestamoId, ars]) => ({ prestamoId, ars })),
     saldoFavor,
     cancelados,
+  };
+}
+
+/** Saldo a favor de un pago anterior que se puede aplicar (en ARS). */
+export interface SaldoAplicable {
+  pagoId: string;
+  ars: Decimal.Value;
+}
+
+/** Imputaciones que se registran contra un pago (el nuevo o uno con saldo a favor). */
+export interface ImputacionFuente {
+  /** null = el pago que se está registrando. */
+  pagoId: string | null;
+  lineas: LineaImputacion[];
+  porPrestamo: { prestamoId: string; ars: Decimal }[];
+  /** ARS que esta fuente aplica a préstamos. */
+  aplicado: Decimal;
+}
+
+const porPrestamoDe = (lineas: LineaImputacion[]) => {
+  const m = new Map<string, Decimal>();
+  for (const l of lineas) if (l.prestamoId) m.set(l.prestamoId, (m.get(l.prestamoId) ?? new Decimal(0)).plus(l.ars));
+  return [...m].map(([prestamoId, ars]) => ({ prestamoId, ars }));
+};
+
+/**
+ * Imputa lo cobrado ahora más el saldo a favor que se elige aplicar. Se consume
+ * primero el saldo a favor (del pago más viejo al más nuevo) y después el pago
+ * nuevo, siguiendo el orden de la cascada. Cada parte queda imputada contra su
+ * pago de origen (así conserva su TC): en un saldo aplicado, la fila de saldo
+ * a favor negativa compensa lo que va a los préstamos. Lo que sobra del pago
+ * nuevo queda como saldo a favor; el saldo anterior no usado sigue donde estaba.
+ */
+export function imputarCobro(params: {
+  deudas: Deuda[];
+  montos: Map<string, Decimal.Value>;
+  /** Monto del pago nuevo; 0 si solo se aplica saldo a favor. */
+  nuevo: Decimal.Value;
+  saldos: SaldoAplicable[];
+}): { aplicaciones: ImputacionFuente[]; pago: (ImputacionFuente & { saldoFavor: Decimal }) | null; cancelados: string[] } {
+  const nuevo = new Decimal(params.nuevo);
+  if (nuevo.lt(0)) throw new ErrorImputacion("El pago no puede ser negativo.");
+  const fuentes = [
+    ...params.saldos.map((s) => ({ pagoId: s.pagoId as string | null, ars: new Decimal(s.ars) })).filter((s) => s.ars.gt(0)),
+    ...(nuevo.gt(0) ? [{ pagoId: null, ars: nuevo }] : []),
+  ];
+  const total = fuentes.reduce((s, f) => s.plus(f.ars), new Decimal(0));
+  if (total.isZero()) throw new ErrorImputacion("Ingresá el monto cobrado o aplicá saldo a favor.");
+
+  const imp = imputarPago(total, params.deudas, params.montos);
+  const pendientes = imp.lineas.filter((l) => l.concepto !== "saldo_favor").map((l) => ({ ...l }));
+  if (nuevo.isZero() && pendientes.length === 0) throw new ErrorImputacion("Elegí qué cuotas paga el saldo a favor.");
+
+  const resultado: ImputacionFuente[] = fuentes.map((f) => {
+    const lineas: LineaImputacion[] = [];
+    let resto = f.ars;
+    while (resto.gt(0) && pendientes.length) {
+      const l = pendientes[0]!;
+      const parte = Decimal.min(resto, l.ars);
+      lineas.push({ ...l, ars: parte });
+      l.ars = l.ars.minus(parte);
+      if (l.ars.isZero()) pendientes.shift();
+      resto = resto.minus(parte);
+    }
+    const aplicado = f.ars.minus(resto);
+    if (f.pagoId !== null && aplicado.gt(0)) lineas.push({ prestamoId: null, cuotaId: null, concepto: "saldo_favor", ars: aplicado.neg() });
+    if (f.pagoId === null && resto.gt(0)) lineas.push({ prestamoId: null, cuotaId: null, concepto: "saldo_favor", ars: resto });
+    return { pagoId: f.pagoId, lineas, porPrestamo: porPrestamoDe(lineas), aplicado };
+  });
+
+  const pago = resultado.find((r) => r.pagoId === null);
+  return {
+    aplicaciones: resultado.filter((r) => r.pagoId !== null && r.aplicado.gt(0)),
+    pago: pago ? { ...pago, saldoFavor: nuevo.minus(pago.aplicado) } : null,
+    cancelados: imp.cancelados,
   };
 }
 
@@ -264,22 +374,34 @@ export function asientosIngresoUsdt(params: {
     return { ...p, usdt };
   });
 
-  const asientos: Asiento[] = [{ cuenta: "caja_usdt", moneda: "USDT", monto: usdtTotal }];
-  const prestamos: RecuperoPrestamo[] = [];
-  let saldoFavorUsdt = new Decimal(0);
+  const prestamosUsdt = usdtPartes.flatMap((p) => (p.prestamoId ? [{ prestamoId: p.prestamoId, usdt: p.usdt }] : []));
+  const saldoFavorUsdt = usdtPartes.find((p) => p.prestamoId === null)?.usdt ?? new Decimal(0);
+  const recupero = asientosRecupero(prestamosUsdt, params.cartera, params.participaciones);
+  const asientos: Asiento[] = [
+    { cuenta: "caja_usdt", moneda: "USDT", monto: usdtTotal },
+    ...recupero.asientos,
+    ...(saldoFavorUsdt.gt(0) ? [{ cuenta: "saldo_favor" as const, moneda: "USDT" as const, monto: saldoFavorUsdt.neg(), clienteId: params.clienteId }] : []),
+  ];
+  return { asientos, usdtTotal, prestamos: recupero.prestamos, saldoFavorUsdt };
+}
 
-  for (const p of usdtPartes) {
-    if (p.prestamoId === null) {
-      saldoFavorUsdt = p.usdt;
-      if (p.usdt.gt(0)) asientos.push({ cuenta: "saldo_favor", moneda: "USDT", monto: p.usdt.neg(), clienteId: params.clienteId });
-      continue;
-    }
-    const cartera = pos(new Decimal(params.cartera.get(p.prestamoId) ?? 0));
-    const recupero = Decimal.min(p.usdt, cartera);
+/**
+ * Reconocimiento por recuperación de costo de USDT que entran a cada préstamo:
+ * baja la cartera hasta 0 y lo que sobra es ganancia, repartida según `pct_ganancia`.
+ */
+function asientosRecupero(
+  partes: { prestamoId: string; usdt: Decimal }[],
+  cartera: Map<string, Decimal.Value>,
+  participaciones: Map<string, ParticipacionGanancia[]>,
+): { asientos: Asiento[]; prestamos: RecuperoPrestamo[] } {
+  const asientos: Asiento[] = [];
+  const prestamos: RecuperoPrestamo[] = [];
+  for (const p of partes) {
+    const recupero = Decimal.min(p.usdt, pos(new Decimal(cartera.get(p.prestamoId) ?? 0)));
     const ganancia = p.usdt.minus(recupero);
     if (recupero.gt(0)) asientos.push({ cuenta: "cartera", moneda: "USDT", monto: recupero.neg(), prestamoId: p.prestamoId });
     if (ganancia.gt(0)) {
-      const parts = params.participaciones.get(p.prestamoId);
+      const parts = participaciones.get(p.prestamoId);
       if (!parts?.length) throw new Error(`El préstamo ${p.prestamoId} no tiene participaciones`);
       const reparto = repartir(
         ganancia,
@@ -294,8 +416,44 @@ export function asientosIngresoUsdt(params: {
     }
     prestamos.push({ prestamoId: p.prestamoId, usdt: p.usdt, recupero, ganancia });
   }
+  return { asientos, prestamos };
+}
 
-  return { asientos, usdtTotal, prestamos, saldoFavorUsdt };
+/** USDT que vale una parte del saldo a favor de un pago (proporcional; el total exacto si se aplica todo). */
+export function valorSaldoUsdt(aplicadoArs: Decimal.Value, saldoArs: Decimal.Value, saldoUsdt: Decimal.Value): Decimal {
+  const aplicado = new Decimal(aplicadoArs);
+  const saldo = new Decimal(saldoArs);
+  if (aplicado.lte(0) || aplicado.gt(saldo)) throw new Error("El monto aplicado tiene que estar entre 0 y el saldo a favor");
+  return aplicado.eq(saldo) ? new Decimal(saldoUsdt) : redondearUsdt(aplicado.div(saldo).times(saldoUsdt));
+}
+
+/**
+ * Aplicación de saldo a favor (ya realizado en USDT) a préstamos: baja la deuda
+ * con el cliente y entra a los préstamos con el mismo reconocimiento por
+ * recuperación de costo que un cobro. Sin movimiento de caja.
+ */
+export function asientosAplicacionSaldo(params: {
+  usdt: Decimal.Value;
+  porPrestamo: { prestamoId: string; ars: Decimal.Value }[];
+  clienteId: string;
+  cartera: Map<string, Decimal.Value>;
+  participaciones: Map<string, ParticipacionGanancia[]>;
+}): { asientos: Asiento[]; prestamos: RecuperoPrestamo[] } {
+  const usdt = new Decimal(params.usdt);
+  const partes = params.porPrestamo.map((p) => ({ prestamoId: p.prestamoId, ars: new Decimal(p.ars) })).filter((p) => p.ars.gt(0));
+  if (usdt.lte(0) || partes.length === 0) throw new Error("No hay nada que aplicar");
+  const arsTotal = partes.reduce((s, p) => s.plus(p.ars), new Decimal(0));
+  let asignado = new Decimal(0);
+  const usdtPartes = partes.map((p, i) => {
+    const u = i === partes.length - 1 ? usdt.minus(asignado) : redondearUsdt(usdt.times(p.ars).div(arsTotal));
+    asignado = asignado.plus(u);
+    return { prestamoId: p.prestamoId, usdt: u };
+  });
+  const recupero = asientosRecupero(usdtPartes, params.cartera, params.participaciones);
+  return {
+    asientos: [{ cuenta: "saldo_favor", moneda: "USDT", monto: usdt, clienteId: params.clienteId }, ...recupero.asientos],
+    prestamos: recupero.prestamos,
+  };
 }
 
 /**

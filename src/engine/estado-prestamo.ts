@@ -10,6 +10,17 @@ export interface CuotaConPagos {
   /** Imputado (de pagos no anulados) a esta cuota por concepto. */
   pagadoCapital: Decimal.Value;
   pagadoInteres: Decimal.Value;
+  /** Descuento que baja el interés de la cuota (ver `cargosDeCuota`). */
+  descuentoInteres?: Decimal.Value;
+}
+
+/**
+ * Cargos de una cuota netos de lo imputado a mora. Lo positivo es mora pendiente;
+ * lo negativo es descuento que ya no tiene mora que bajar y baja el interés.
+ */
+export function cargosDeCuota(cargos: Decimal.Value, pagadoCargos: Decimal.Value): { mora: Decimal; descuentoInteres: Decimal } {
+  const neto = new Decimal(cargos).minus(pagadoCargos);
+  return { mora: Decimal.max(neto, 0), descuentoInteres: Decimal.max(neto.neg(), 0) };
 }
 
 /** Estado visible de una cuota; vencida tiene prioridad sobre parcial. */
@@ -47,7 +58,7 @@ export function estadoCuotas(cuotas: CuotaConPagos[], hoy: Fecha): EstadoCuotas 
     .sort((a, b) => a.numero - b.numero)
     .map((c): CuotaEstado => {
       const saldoCapital = noNegativo(new Decimal(c.arsCapital).minus(c.pagadoCapital));
-      const saldoInteres = noNegativo(new Decimal(c.arsInteres).minus(c.pagadoInteres));
+      const saldoInteres = noNegativo(new Decimal(c.arsInteres).minus(c.pagadoInteres).minus(c.descuentoInteres ?? 0));
       const saldo = saldoCapital.plus(saldoInteres);
       const pagada = saldo.isZero();
       const atraso = diasEntre(c.vencimiento, hoy);

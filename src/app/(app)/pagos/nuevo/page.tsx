@@ -1,8 +1,9 @@
+import Decimal from "decimal.js";
 import { asc, count, ne, sql } from "drizzle-orm";
 import type { Metadata } from "next";
 import { FormPago, type OpcionClientePago } from "@/components/app/form-pago";
 import { db } from "@/db";
-import { cargarDeudaCliente, saldoFavorCliente } from "@/db/registrar-pago";
+import { cargarDeudaCliente, saldosAFavor } from "@/db/registrar-pago";
 import { clientes, prestamos } from "@/db/schema";
 import { formatearDocumento } from "@/lib/formato";
 import { hoyArgentina } from "@/lib/hoy";
@@ -37,9 +38,10 @@ export default async function RegistrarPagoPage({ searchParams }: PageProps<"/pa
   }));
   const elegido = typeof cliente === "string" && UUID.test(cliente) ? (opciones.find((o) => o.value === cliente) ?? null) : null;
 
-  const [deuda, saldoFavor] = elegido
-    ? await Promise.all([cargarDeudaCliente(db, elegido.value), saldoFavorCliente(db, elegido.value)])
-    : [[], null];
+  const [deuda, saldos] = elegido
+    ? await Promise.all([cargarDeudaCliente(db, elegido.value), saldosAFavor(db, elegido.value)])
+    : [[], []];
+  const sumar = (xs: { ars: Decimal }[]) => xs.reduce((s, x) => s.plus(x.ars), new Decimal(0)).toFixed(2);
 
   return (
     <FormPago
@@ -48,7 +50,8 @@ export default async function RegistrarPagoPage({ searchParams }: PageProps<"/pa
       clientes={opciones}
       cliente={elegido}
       prestamos={deuda}
-      saldoFavor={saldoFavor?.toFixed(2) ?? "0"}
+      saldoFavor={sumar(saldos)}
+      saldoAplicable={sumar(saldos.filter((x) => x.aplicable))}
       hoy={hoyArgentina()}
     />
   );

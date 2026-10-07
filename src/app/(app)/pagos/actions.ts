@@ -13,7 +13,21 @@ export type EstadoFormPago = {
   errores?: Partial<Record<CamposPago, string>>;
 };
 
-const CAMPOS: CamposPago[] = ["clienteId", "fecha", "tipo", "ars", "tcSalida", "metodo", "notas", "montos"];
+const CAMPOS: CamposPago[] = [
+  "clienteId",
+  "fecha",
+  "tipo",
+  "ars",
+  "tcSalida",
+  "metodo",
+  "notas",
+  "montos",
+  "usarSaldo",
+  "descuentos",
+  "motivoDescuento",
+];
+
+const aMapa = (r: Record<string, string>) => new Map(Object.entries(r).map(([k, v]) => [k, new Decimal(v)]));
 
 export async function registrarPago(_prev: EstadoFormPago, form: FormData): Promise<EstadoFormPago> {
   const usuario = await usuarioActual();
@@ -42,7 +56,10 @@ export async function registrarPago(_prev: EstadoFormPago, form: FormData): Prom
             tcSalida: d.tcSalida,
             metodo: d.metodo,
             notas: d.notas,
-            montos: new Map(Object.entries(d.montos).map(([k, v]) => [k, new Decimal(v)])),
+            montos: aMapa(d.montos),
+            usarSaldo: d.usarSaldo,
+            descuentos: aMapa(d.descuentos),
+            motivoDescuento: d.motivoDescuento,
           },
           { usuarioId: usuario.id },
         ),

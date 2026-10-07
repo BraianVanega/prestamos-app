@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Abajo a la izquierda tapa el usuario de la barra lateral.
+  devIndicators: { position: "bottom-right" },
 };
 
 export default nextConfig;

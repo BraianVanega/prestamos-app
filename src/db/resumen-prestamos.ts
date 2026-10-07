@@ -13,7 +13,7 @@ import {
   prestamos,
 } from "./schema";
 import { estadoCuotas, nivelRiesgo, recuperadoUsdt, type EstadoCuotas, type NivelRiesgo } from "@/engine/estado-prestamo";
-import type { Fecha } from "@/engine/fechas";
+import { diasEntre, type Fecha } from "@/engine/fechas";
 
 export interface ResumenPrestamo {
   id: string;
@@ -64,6 +64,7 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
       estado: prestamos.estado,
       fechaDesembolso: prestamos.fechaDesembolso,
       nCuotas: prestamos.nCuotas,
+      vencimientoFinal: prestamos.vencimientoFinal,
       arsCapital: prestamos.arsCapital,
       tcEntrada: prestamos.tcEntrada,
       usdtPrestado: prestamos.usdtPrestado,
@@ -165,7 +166,7 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
         gananciaAsientos: suma("ganancia"),
       }),
       plan,
-      riesgo: f.estado === "vigente" ? nivelRiesgo(plan.diasAtraso) : "verde",
+      riesgo: f.estado === "vigente" ? nivelRiesgo(plan.diasAtraso, diasEntre(f.fechaDesembolso, f.vencimientoFinal)) : "verde",
     };
   });
 }

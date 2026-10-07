@@ -72,18 +72,28 @@ export function estadoCuotas(cuotas: CuotaConPagos[], hoy: Fecha): EstadoCuotas 
 export type NivelRiesgo = "verde" | "amarillo" | "naranja" | "rojo" | "negro";
 
 /**
- * Semáforo por días de atraso (leyenda del Overview en design/).
- * Hasta cada límite inclusive; más allá del último, negro.
+ * Semáforo por atraso como % del plazo total del préstamo (desembolso → último
+ * vencimiento), con los cortes de la leyenda del Overview. Hasta cada límite
+ * inclusive; más allá del último, negro. Así un préstamo corto se pone en rojo
+ * antes que uno largo con los mismos días de atraso.
  */
-export const BANDAS_RIESGO: { hasta: number; nivel: NivelRiesgo }[] = [
-  { hasta: 3, nivel: "verde" },
-  { hasta: 10, nivel: "amarillo" },
-  { hasta: 20, nivel: "naranja" },
-  { hasta: 45, nivel: "rojo" },
+export const BANDAS_RIESGO_PCT: { hastaPct: number; nivel: NivelRiesgo }[] = [
+  { hastaPct: 3, nivel: "verde" },
+  { hastaPct: 10, nivel: "amarillo" },
+  { hastaPct: 20, nivel: "naranja" },
+  { hastaPct: 45, nivel: "rojo" },
 ];
 
-export function nivelRiesgo(diasAtraso: number): NivelRiesgo {
-  return BANDAS_RIESGO.find((b) => diasAtraso <= b.hasta)?.nivel ?? "negro";
+/** % del plazo que representa el atraso (4 decimales). */
+export function atrasoPctDelPlazo(diasAtraso: number, diasPlazo: number): Decimal {
+  if (!Number.isInteger(diasPlazo) || diasPlazo <= 0) throw new Error("El plazo debe ser de al menos 1 día");
+  return new Decimal(Math.max(diasAtraso, 0)).div(diasPlazo).times(100).toDecimalPlaces(4, Decimal.ROUND_HALF_UP);
+}
+
+export function nivelRiesgo(diasAtraso: number, diasPlazo: number): NivelRiesgo {
+  if (diasAtraso <= 0) return "verde";
+  const pct = atrasoPctDelPlazo(diasAtraso, diasPlazo);
+  return BANDAS_RIESGO_PCT.find((b) => pct.lte(b.hastaPct))?.nivel ?? "negro";
 }
 
 /**

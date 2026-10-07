@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estadoCuotas, nivelRiesgo, recuperadoUsdt, type CuotaConPagos } from "./estado-prestamo";
+import { atrasoPctDelPlazo, estadoCuotas, nivelRiesgo, recuperadoUsdt, type CuotaConPagos } from "./estado-prestamo";
 
 const cuota = (numero: number, vencimiento: string, pagado: [string, string] = ["0", "0"]): CuotaConPagos => ({
   id: `c${numero}`,
@@ -59,11 +59,28 @@ describe("estadoCuotas", () => {
   });
 });
 
-describe("nivelRiesgo", () => {
-  it("bandas de la leyenda", () => {
-    expect([0, 3, 4, 10, 11, 20, 21, 45, 46, 400].map(nivelRiesgo)).toEqual([
+describe("nivelRiesgo (% del plazo total)", () => {
+  it("préstamo de 90 días: cortes en 2,7 / 9 / 18 / 40,5 días", () => {
+    expect([0, 2, 3, 9, 10, 18, 19, 40, 41, 200].map((d) => nivelRiesgo(d, 90))).toEqual([
       "verde", "verde", "amarillo", "amarillo", "naranja", "naranja", "rojo", "rojo", "negro", "negro",
     ]);
+  });
+
+  it("préstamo de 30 días se pone en rojo antes que uno largo", () => {
+    expect(nivelRiesgo(5, 30)).toBe("naranja");
+    expect(nivelRiesgo(5, 180)).toBe("verde");
+    expect(nivelRiesgo(14, 30)).toBe("negro");
+  });
+
+  it("el límite es inclusive", () => {
+    // 3 días de 100 = 3% → verde; 10 de 100 = 10% → amarillo
+    expect(nivelRiesgo(3, 100)).toBe("verde");
+    expect(nivelRiesgo(10, 100)).toBe("amarillo");
+    expect(atrasoPctDelPlazo(10, 30).toFixed(4)).toBe("33.3333");
+  });
+
+  it("valida el plazo", () => {
+    expect(() => nivelRiesgo(1, 0)).toThrow();
   });
 });
 

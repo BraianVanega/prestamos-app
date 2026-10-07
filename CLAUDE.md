@@ -5,7 +5,7 @@
 Sistema de gestión de préstamos (ARS / USDT) para una sociedad con dos socios.
 
 - Negocio: `docs/spec.pdf`
-- Esquema: `src/db/schema.ts` (copia fiel de `docs/schema.ts`)
+- Esquema: `src/db/schema.ts` (parte de `docs/schema.ts`; cambios posteriores en migraciones 0002+)
 - Integridad en la base: `drizzle/0001_triggers.sql`
 - Diseño: `design/DESIGN.md` + `design/*.png`
 
@@ -85,9 +85,10 @@ pnpm build / pnpm lint / pnpm typecheck
 pnpm test               # unit (src/**/*.test.ts)
 pnpm test:integration   # contra el Postgres local (tests/integration)
 
-pnpm db:up              # Postgres 17 en Docker (localhost:5433)
+pnpm db:up              # Supabase local (Postgres 17 + Auth) en Docker; db en localhost:54322
+pnpm db:down            # supabase stop
 pnpm db:migrate         # aplica drizzle/*.sql
-pnpm db:seed            # admin + Sociedad + Socio 1 / Socio 2 (50/50), idempotente
+pnpm db:seed            # 2 usuarios (Auth + usuarios) + Sociedad + Socio 1 / Socio 2 (50/50), idempotente
 pnpm db:generate        # nueva migración desde el esquema
 pnpm db:studio
 ```

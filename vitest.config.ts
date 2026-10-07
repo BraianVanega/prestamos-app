@@ -14,7 +14,7 @@ export default defineConfig({
         },
       },
       {
-        // Contra el Postgres local (pnpm db:up && pnpm db:migrate).
+        // Contra el Supabase local (pnpm db:up && pnpm db:migrate).
         extends: true,
         test: {
           name: "integration",

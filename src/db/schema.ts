@@ -175,6 +175,9 @@ export const prestamos = pgTable(
     frecuencia: frecuencia("frecuencia").notNull(),
     nCuotas: integer("n_cuotas").notNull(),
     vencimientoFinal: date("vencimiento_final").notNull(),
+    // Mora: recargo único = mora_pct × capital impago de la cuota si el atraso supera dias_gracia
+    moraPct: pct("mora_pct").notNull().default("20"),
+    diasGracia: integer("dias_gracia").notNull().default(5),
 
     // Resultados congelados al alta, verificados por CHECK
     usdtPrestado: usdt("usdt_prestado").notNull(),
@@ -196,6 +199,7 @@ export const prestamos = pgTable(
     check("tc_entrada_pos", sql`${t.tcEntrada} > 0`),
     check("n_cuotas_pos", sql`${t.nCuotas} > 0`),
     check("tasas_no_neg", sql`${t.tasaMensualPct} >= 0 and ${t.tasaTotalPct} >= 0`),
+    check("mora_no_neg", sql`${t.moraPct} >= 0 and ${t.diasGracia} >= 0`),
     check("usdt_prestado_ok", sql`${t.usdtPrestado} = round(${t.arsCapital} / ${t.tcEntrada}, 8)`),
     check(
       "interes_pactado_ok",

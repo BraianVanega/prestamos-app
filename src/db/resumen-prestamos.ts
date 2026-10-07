@@ -28,6 +28,8 @@ export interface ResumenPrestamo {
   tcEntrada: Decimal;
   usdtPrestado: Decimal;
   recuperadoUsdt: Decimal;
+  /** Costo en USDT todavía no recuperado (saldo de cartera). */
+  carteraUsdt: Decimal;
   plan: EstadoCuotas;
   riesgo: NivelRiesgo;
 }
@@ -175,6 +177,7 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
         saldoCartera: suma("cartera"),
         gananciaAsientos: suma("ganancia"),
       }),
+      carteraUsdt: new Decimal(suma("cartera")),
       plan,
       riesgo: f.estado === "vigente" ? nivelRiesgo(plan.diasAtraso, diasEntre(f.fechaDesembolso, f.vencimientoFinal)) : "verde",
     };

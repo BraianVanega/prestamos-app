@@ -12,6 +12,9 @@ export interface CuotaConPagos {
   pagadoInteres: Decimal.Value;
 }
 
+/** Estado visible de una cuota; vencida tiene prioridad sobre parcial. */
+export type SituacionCuota = "pagada" | "vencida" | "parcial" | "pendiente";
+
 export interface CuotaEstado {
   id: string;
   numero: number;
@@ -20,6 +23,7 @@ export interface CuotaEstado {
   saldoInteres: Decimal;
   saldo: Decimal;
   pagada: boolean;
+  situacion: SituacionCuota;
   /** Días desde el vencimiento si está impaga y vencida; si no, 0. */
   diasAtraso: number;
 }
@@ -47,6 +51,8 @@ export function estadoCuotas(cuotas: CuotaConPagos[], hoy: Fecha): EstadoCuotas 
       const saldo = saldoCapital.plus(saldoInteres);
       const pagada = saldo.isZero();
       const atraso = diasEntre(c.vencimiento, hoy);
+      const diasAtraso = !pagada && atraso > 0 ? atraso : 0;
+      const parcial = !pagada && saldo.lt(new Decimal(c.arsCapital).plus(c.arsInteres));
       return {
         id: c.id,
         numero: c.numero,
@@ -55,7 +61,8 @@ export function estadoCuotas(cuotas: CuotaConPagos[], hoy: Fecha): EstadoCuotas 
         saldoInteres,
         saldo,
         pagada,
-        diasAtraso: !pagada && atraso > 0 ? atraso : 0,
+        situacion: pagada ? "pagada" : diasAtraso > 0 ? "vencida" : parcial ? "parcial" : "pendiente",
+        diasAtraso,
       };
     });
 
@@ -109,4 +116,29 @@ export function recuperadoUsdt(params: {
   const costoRecuperado = new Decimal(params.usdtPrestado).minus(params.saldoCartera);
   const ganancia = new Decimal(params.gananciaAsientos).neg();
   return costoRecuperado.plus(ganancia);
+}
+
+export interface SaldoExigible {
+  /** Capital + interés impago del plan. */
+  plan: Decimal;
+  /** Cargos vigentes (mora +, descuento −, ajuste ±) menos lo ya imputado a mora. */
+  cargos: Decimal;
+  /** Mora que corresponde a la fecha y todavía no se cargó (se carga al registrar el pago). */
+  moraACargar: Decimal;
+  total: Decimal;
+}
+
+/** Lo que el cliente debe hoy en ARS por un préstamo. Nunca negativo. */
+export function saldoExigible(params: {
+  saldoPlan: Decimal.Value;
+  /** Montos de cargos no anulados. */
+  cargos: Decimal.Value[];
+  /** Imputado a mora/cargos por pagos no anulados. */
+  imputadoCargos: Decimal.Value;
+  moraACargar: Decimal.Value[];
+}): SaldoExigible {
+  const plan = new Decimal(params.saldoPlan);
+  const cargos = params.cargos.reduce<Decimal>((s, c) => s.plus(c), new Decimal(0)).minus(params.imputadoCargos);
+  const moraACargar = params.moraACargar.reduce<Decimal>((s, c) => s.plus(c), new Decimal(0));
+  return { plan, cargos, moraACargar, total: Decimal.max(plan.plus(cargos).plus(moraACargar), 0) };
 }

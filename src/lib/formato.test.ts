@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatearDocumento, formatearFecha, normalizarDocumento } from "./formato";
+import { formatearDocumento, formatearFecha, formatearFechaHora, normalizarDocumento } from "./formato";
 
 describe("normalizarDocumento", () => {
   it("deja solo dígitos en DNI y CUIT", () => {
@@ -36,5 +36,12 @@ describe("formatearFecha", () => {
   it("DD/MM/YYYY sin correrse por zona horaria", () => {
     expect(formatearFecha("2026-10-01")).toBe("01/10/2026");
     expect(formatearFecha(new Date("2026-03-05T02:00:00Z"))).toBe("05/03/2026");
+  });
+});
+
+describe("formatearFechaHora", () => {
+  it("en hora de Argentina (UTC−3)", () => {
+    expect(formatearFechaHora(new Date("2026-03-05T02:30:00Z"))).toBe("04/03/2026 · 23:30");
+    expect(formatearFechaHora(new Date("2026-10-07T15:05:00Z"))).toBe("07/10/2026 · 12:05");
   });
 });

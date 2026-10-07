@@ -29,3 +29,19 @@ export function formatearFecha(fecha: string | Date): string {
   const [a, m, d] = iso.split("-");
   return `${d}/${m}/${a}`;
 }
+
+const FECHA_HORA = new Intl.DateTimeFormat("es-AR", {
+  timeZone: "America/Argentina/Buenos_Aires",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+/** Instante → `DD/MM/YYYY · HH:MM` en hora de Argentina. */
+export function formatearFechaHora(instante: Date): string {
+  const partes = Object.fromEntries(FECHA_HORA.formatToParts(instante).map((p) => [p.type, p.value]));
+  return `${partes.day}/${partes.month}/${partes.year} · ${partes.hour}:${partes.minute}`;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atrasoPctDelPlazo, estadoCuotas, nivelRiesgo, recuperadoUsdt, type CuotaConPagos } from "./estado-prestamo";
+import { atrasoPctDelPlazo, estadoCuotas, nivelRiesgo, recuperadoUsdt, saldoExigible, type CuotaConPagos } from "./estado-prestamo";
 
 const cuota = (numero: number, vencimiento: string, pagado: [string, string] = ["0", "0"]): CuotaConPagos => ({
   id: `c${numero}`,
@@ -53,6 +53,19 @@ describe("estadoCuotas", () => {
     expect(e.cuotas.map((c) => c.numero)).toEqual([1, 2]);
   });
 
+  it("situación de cada cuota", () => {
+    const e = estadoCuotas(
+      [
+        cuota(1, "2026-10-01", ["1000", "200"]),
+        cuota(2, "2026-10-10", ["0", "100"]),
+        cuota(3, "2026-11-01", ["500", "0"]),
+        cuota(4, "2026-12-01"),
+      ],
+      "2026-10-20",
+    );
+    expect(e.cuotas.map((c) => c.situacion)).toEqual(["pagada", "vencida", "parcial", "pendiente"]);
+  });
+
   it("un sobrepago no deja saldos negativos", () => {
     const e = estadoCuotas([cuota(1, "2026-10-01", ["1500", "300"])], "2026-10-20");
     expect(e.saldoArs.toFixed(2)).toBe("0.00");
@@ -95,5 +108,16 @@ describe("recuperadoUsdt", () => {
 
   it("costo recuperado completo más ganancia reconocida (crédito)", () => {
     expect(recuperadoUsdt({ usdtPrestado: "800", saldoCartera: "0", gananciaAsientos: "-95.5" }).toFixed(2)).toBe("895.50");
+  });
+});
+
+describe("saldoExigible", () => {
+  it("plan + cargos netos de lo imputado + mora a cargar", () => {
+    const s = saldoExigible({ saldoPlan: "1200", cargos: ["200", "-50"], imputadoCargos: "100", moraACargar: ["40"] });
+    expect([s.plan, s.cargos, s.moraACargar, s.total].map((d) => d.toFixed(2))).toEqual(["1200.00", "50.00", "40.00", "1290.00"]);
+  });
+
+  it("un descuento mayor que la deuda no deja saldo negativo", () => {
+    expect(saldoExigible({ saldoPlan: "0", cargos: ["-30"], imputadoCargos: "0", moraACargar: [] }).total.toFixed(2)).toBe("0.00");
   });
 });

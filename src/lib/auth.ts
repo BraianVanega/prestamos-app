@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { db } from "@/db";
+import { db, type Tx } from "@/db";
 import { usuarios } from "@/db/schema";
 import { crearSupabase } from "@/lib/supabase/server";
 
@@ -29,8 +29,6 @@ export const usuarioActual = cache(async (): Promise<Usuario> => {
   }
   return usuario;
 });
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Transacción de escritura con el usuario (y motivo) seteados para la auditoría.

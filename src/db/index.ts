@@ -12,3 +12,6 @@ if (process.env.NODE_ENV !== "production") globalForDb.pg = client;
 
 export const db = drizzle(client, { schema });
 export type Db = typeof db;
+
+/** Transacción de Drizzle (lo que recibe el callback de `db.transaction`). */
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];

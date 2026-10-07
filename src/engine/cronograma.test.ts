@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
-import { calcularPlan, mesesDelPlazo, tasaTotalSugerida } from "./cronograma";
+import { calcularPlan, mesesDelPlazo, proyectarUsdt, tasaTotalSugerida } from "./cronograma";
 
 const suma = (xs: Decimal[]) => xs.reduce((a, b) => a.plus(b), new Decimal(0));
 
@@ -99,5 +99,27 @@ describe("calcularPlan", () => {
     expect(() => calcularPlan({ ...base, tasaTotalPct: "-1" })).toThrow();
     expect(() => calcularPlan({ ...base, nCuotas: 0 })).toThrow();
     expect(() => calcularPlan({ ...base, nCuotas: 1.5 })).toThrow();
+  });
+});
+
+describe("proyectarUsdt", () => {
+  it("ejemplo del diseño: 3.500.000 ARS a 1.285, 36% en 6 quincenas", () => {
+    const plan = calcularPlan({
+      arsCapital: "3500000",
+      tcEntrada: "1285",
+      tasaTotalPct: "36",
+      fechaDesembolso: "2026-10-03",
+      frecuencia: "quincena",
+      nCuotas: 6,
+    });
+    const proy = proyectarUsdt(plan, "1285", "12");
+    // 4.760.000 / 1.285 = 3.704,2801556…
+    expect(proy.totalUsdt.toFixed(2)).toBe("3704.28");
+    // 1.260.000 / 1.285 = 980,5447470…
+    expect(proy.gananciaUsdt.toFixed(2)).toBe("980.54");
+    expect(proy.tnaPct.toFixed(2)).toBe("144.00");
+    // 793.333,33 / 1.285 = 617,3800…
+    expect(proy.cuotas[0]!.totalArs.toFixed(2)).toBe("793333.33");
+    expect(proy.cuotas[0]!.totalUsdt.toFixed(2)).toBe("617.38");
   });
 });

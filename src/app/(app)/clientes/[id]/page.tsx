@@ -4,9 +4,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BadgeEstadoCliente } from "@/components/app/badge-estado-cliente";
 import { FormCliente } from "@/components/app/form-cliente";
+import { buttonVariants } from "@/components/ui/button";
 import { db } from "@/db";
 import { clientes, prestamos } from "@/db/schema";
 import { formatearDocumento, formatearFecha } from "@/lib/formato";
+import { numeroPrestamo } from "@/lib/prestamos";
 import { actualizarCliente } from "../actions";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,14 +54,21 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
       </div>
 
       <div className="rounded-lg border border-outline-variant bg-surface-container-lowest p-margin-panel">
-        <h2 className="mb-margin text-headline-sm text-on-surface">Préstamos</h2>
+        <div className="mb-margin flex items-center justify-between gap-margin">
+          <h2 className="text-headline-sm text-on-surface">Préstamos</h2>
+          {cliente.estado === "activo" && (
+            <Link href={`/prestamos/nuevo?cliente=${cliente.id}`} className={buttonVariants({ size: "sm" })}>
+              Nuevo préstamo
+            </Link>
+          )}
+        </div>
         {susPrestamos.length === 0 ? (
           <p className="text-body-md text-on-surface-variant">Este cliente todavía no tiene préstamos.</p>
         ) : (
           <ul className="flex flex-col gap-space-xs text-body-md">
             {susPrestamos.map((p) => (
               <li key={p.id} className="flex items-center gap-space-md">
-                <span className="font-mono text-primary tabular-nums">#PR-{p.numero}</span>
+                <Link href={`/prestamos/${p.id}`} className="font-mono text-primary tabular-nums hover:underline">{numeroPrestamo(p.numero)}</Link>
                 <span className="font-mono text-on-surface-variant tabular-nums">{formatearFecha(p.fecha)}</span>
                 <span className="text-on-surface-variant capitalize">{p.estado}</span>
               </li>

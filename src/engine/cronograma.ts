@@ -81,3 +81,30 @@ export function calcularPlan(datos: DatosPrestamo): PlanPrestamo {
     cuotas,
   };
 }
+
+export interface ProyeccionUsdt {
+  /** Total a cobrar convertido al TC de entrada: la meta en USDT si el TC no se mueve. */
+  totalUsdt: Decimal;
+  /** Interés pactado al TC de entrada: ganancia proyectada (no realizada). */
+  gananciaUsdt: Decimal;
+  /** Tasa nominal anual = tasa mensual × 12. */
+  tnaPct: Decimal;
+  cuotas: { numero: number; totalArs: Decimal; totalUsdt: Decimal }[];
+}
+
+/**
+ * Proyección del plan en USDT al TC de entrada, solo para mostrar en el alta.
+ * La ganancia real se reconoce al cobrar, por recuperación de costo en USDT.
+ */
+export function proyectarUsdt(plan: PlanPrestamo, tcEntrada: Decimal.Value, tasaMensualPct: Decimal.Value): ProyeccionUsdt {
+  const tc = new Decimal(tcEntrada);
+  return {
+    totalUsdt: redondearUsdt(plan.arsTotal.div(tc)),
+    gananciaUsdt: redondearUsdt(plan.arsInteresPactado.div(tc)),
+    tnaPct: redondearPct(new Decimal(tasaMensualPct).times(12)),
+    cuotas: plan.cuotas.map((c) => {
+      const totalArs = c.arsCapital.plus(c.arsInteres);
+      return { numero: c.numero, totalArs, totalUsdt: redondearUsdt(totalArs.div(tc)) };
+    }),
+  };
+}

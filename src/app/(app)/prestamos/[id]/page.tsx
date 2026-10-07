@@ -3,6 +3,7 @@ import { ArrowLeft, CalendarDays, History, ReceiptText, SlidersHorizontal, Walle
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BotonAnular } from "@/components/app/boton-anular";
 import { BadgeRiesgo, BarraProgreso, COLORES_RIESGO } from "@/components/app/riesgo";
 import { buttonVariants } from "@/components/ui/button";
 import { cargarFichaPrestamo, type CargoFicha, type EventoFicha, type FichaPrestamo } from "@/db/ficha-prestamo";
@@ -406,6 +407,19 @@ function Cargos({ f }: { f: FichaPrestamo }) {
               >
                 {c.ars.gt(0) ? "+" : "−"}${formatearArs(c.ars.abs())}
               </span>
+              {!c.anulado && (
+                <BotonAnular
+                  entidad="cargos"
+                  id={c.id}
+                  titulo={c.tipo === "mora" ? "la mora" : c.tipo === "descuento" ? "el descuento" : "el ajuste"}
+                  detalle={`${TIPOS_CARGO[c.tipo]}${c.cuotaNumero !== null ? ` · cuota ${c.cuotaNumero}` : ""}: ${c.ars.gt(0) ? "+" : "−"}$${formatearArs(c.ars.abs())} — ${c.motivo}`}
+                  aviso={
+                    c.tipo === "mora"
+                      ? "La mora anulada queda perdonada: no se vuelve a generar en esa cuota."
+                      : "La deuda vuelve a subir; si el préstamo estaba cancelado, se reabre."
+                  }
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -480,9 +494,20 @@ function Historial({ eventos }: { eventos: EventoFicha[] }) {
                 </span>
               )}
               {e.motivo && <span className="text-body-sm text-on-surface-variant">Motivo: {e.motivo}</span>}
-              <span className="w-fit rounded-sm bg-surface-container px-space-sm py-space-2xs text-body-sm text-on-surface-variant">
-                {e.usuario}
-              </span>
+              <div className="flex items-center gap-space-sm">
+                <span className="w-fit rounded-sm bg-surface-container px-space-sm py-space-2xs text-body-sm text-on-surface-variant">
+                  {e.usuario}
+                </span>
+                {e.tipo === "cobro" && e.pagoId && !e.anulada && (
+                  <BotonAnular
+                    entidad="pagos"
+                    id={e.pagoId}
+                    titulo="el pago"
+                    detalle={e.descripcion ?? "Cobro"}
+                    aviso="Se anula el pago completo (todas sus imputaciones y el saldo a favor que se haya aplicado desde él). Si era efectivo ya convertido, anulá antes la conversión. La mora y los descuentos que nacieron con el pago se anulan aparte."
+                  />
+                )}
+              </div>
             </div>
           </li>
         ))}

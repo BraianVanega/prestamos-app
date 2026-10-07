@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { CircleCheck, History, Users } from "lucide-react";
 import type { Metadata } from "next";
+import { BotonAnular } from "@/components/app/boton-anular";
 import { FormAporte } from "@/components/app/form-aporte";
 import { db } from "@/db";
 import { cuentasSocios, historialAportes } from "@/db/socios";
@@ -48,7 +49,7 @@ export default async function SociosPage({ searchParams }: PageProps<"/socios">)
         <h1 className="text-headline-xl text-on-surface">Socios y aportes</h1>
       </div>
 
-      {recien && (
+      {recien && !recien.anulado && (
         <p className="flex items-center gap-space-sm rounded-lg border border-riesgo-verde-borde bg-riesgo-verde-bg px-space-md py-space-sm text-body-md text-riesgo-verde-fg">
           <CircleCheck className="size-4" aria-hidden />
           Aporte registrado: <span className="font-mono tabular-nums">{formatearUsdt(recien.usdt)} USDT</span>
@@ -162,6 +163,9 @@ export default async function SociosPage({ searchParams }: PageProps<"/socios">)
                   ))}
                   <th className={cn(th, "text-right")}>Total USDT</th>
                   <th className={cn(th, "text-left")}>Registró</th>
+                  <th className={th}>
+                    <span className="sr-only">Acciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -179,6 +183,19 @@ export default async function SociosPage({ searchParams }: PageProps<"/socios">)
                     })}
                     <td className={cn(td, "text-right font-semibold text-primary")}>{formatearUsdt(a.usdt)}</td>
                     <td className="px-space-md py-space-sm text-body-md text-on-surface">{a.usuario}</td>
+                    <td className="px-space-md py-space-sm text-right">
+                      {a.anulado ? (
+                        <span className="text-body-sm text-error">Anulado</span>
+                      ) : (
+                        <BotonAnular
+                          entidad="aportes"
+                          id={a.id}
+                          titulo="el aporte"
+                          detalle={`${a.descripcion ?? "Aporte"} (${formatearFecha(a.fecha)})`}
+                          aviso="Sale de la caja USDT y del capital de cada socio; la caja puede quedar negativa."
+                        />
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

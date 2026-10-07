@@ -57,6 +57,7 @@ export interface EventoFicha {
   descripcion: string | null;
   motivo: string | null;
   usuario: string;
+  pagoId: string | null;
   /** Movimiento de cartera + ganancia de este préstamo en la transacción (USDT). */
   usdt: Decimal;
   anulada: boolean;
@@ -119,6 +120,7 @@ export async function cargarFichaPrestamo(id: string, hoy: Fecha): Promise<Ficha
         descripcion: transacciones.descripcion,
         motivo: transacciones.motivo,
         usuario: usuarios.nombre,
+        pagoId: transacciones.pagoId,
         anulada: sql<boolean>`exists (select 1 from transacciones anulante where anulante.anula_transaccion_id = ${transacciones.id})`,
       })
       .from(transacciones)

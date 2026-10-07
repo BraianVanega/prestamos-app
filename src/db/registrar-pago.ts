@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql, type SQL } from "drizzle-orm";
 import type { db, Tx } from "./index";
 import {
   anulaciones,
@@ -43,7 +43,12 @@ const pagosAnulados = (l: Lector) =>
  * Préstamos vigentes del cliente con todo lo que el motor necesita para armar
  * la deuda a cualquier fecha. Los montos viajan como string (se pueden pasar al cliente).
  */
-export async function cargarDeudaCliente(l: Lector, clienteId: string): Promise<PrestamoParaCobro[]> {
+export function cargarDeudaCliente(l: Lector, clienteId: string): Promise<PrestamoParaCobro[]> {
+  return cargarDeuda(l, and(eq(prestamos.clienteId, clienteId), eq(prestamos.estado, "vigente"))!);
+}
+
+/** Igual que `cargarDeudaCliente`, para los préstamos que cumplen `condicion` (cualquier estado). */
+export async function cargarDeuda(l: Lector, condicion: SQL): Promise<PrestamoParaCobro[]> {
   const vigentes = await l
     .select({
       id: prestamos.id,
@@ -53,7 +58,7 @@ export async function cargarDeudaCliente(l: Lector, clienteId: string): Promise<
       diasGracia: prestamos.diasGracia,
     })
     .from(prestamos)
-    .where(and(eq(prestamos.clienteId, clienteId), eq(prestamos.estado, "vigente")))
+    .where(condicion)
     .orderBy(asc(prestamos.numero));
   if (vigentes.length === 0) return [];
   const ids = vigentes.map((p) => p.id);

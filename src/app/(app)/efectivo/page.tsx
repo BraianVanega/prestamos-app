@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { Banknote, CircleCheck, History, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
+import { BotonAnular } from "@/components/app/boton-anular";
 import { FormConversion, type LoteForm } from "@/components/app/form-conversion";
 import { db } from "@/db";
 import { efectivoPendiente, historialConversiones, saldoCajaEfectivo } from "@/db/conversion";
@@ -34,7 +35,7 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
   const delMes = historial.filter((c) => !c.anulada && c.fecha.startsWith(mes));
   const arsMes = delMes.reduce((s, c) => s.plus(c.ars), new Decimal(0));
   const usdtMes = delMes.reduce((s, c) => s.plus(c.usdt), new Decimal(0));
-  const recienConvertida = typeof convertido === "string" ? historial.find((c) => c.id === convertido) : undefined;
+  const recienConvertida = typeof convertido === "string" ? historial.find((c) => c.id === convertido && !c.anulada) : undefined;
 
   const lotes: LoteForm[] = pendientes.map((p) => ({
     pagoId: p.pagoId,
@@ -136,6 +137,9 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
                   <th className={cn(th, "text-right")}>Lotes</th>
                   <th className={cn(th, "text-left")}>Notas</th>
                   <th className={cn(th, "text-left")}>Registró</th>
+                  <th className={th}>
+                    <span className="sr-only">Acciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -148,6 +152,19 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
                     <td className={cn(td, "text-right")}>{c.lotes}</td>
                     <td className="px-space-md py-space-sm text-body-md text-on-surface-variant">{c.notas ?? "—"}</td>
                     <td className="px-space-md py-space-sm text-body-md text-on-surface">{c.usuario}</td>
+                    <td className="px-space-md py-space-sm text-right">
+                      {c.anulada ? (
+                        <span className="text-body-sm text-error">Anulada</span>
+                      ) : (
+                        <BotonAnular
+                          entidad="conversiones"
+                          id={c.id}
+                          titulo="la conversión"
+                          detalle={`Conversión del ${formatearFecha(c.fecha)}: $${formatearArs(c.ars)} a TC ${formatearNumero(c.tc, Math.max(2, c.tc.decimalPlaces()))} = ${formatearUsdt(c.usdt)} USDT`}
+                          aviso="El efectivo vuelve a quedar sin convertir y se revierten el ingreso de USDT, el recupero de costo y la ganancia."
+                        />
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

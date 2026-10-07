@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Contact, Landmark, LayoutDashboard, Users, Wallet } from "lucide-react";
+import { Ban, Banknote, Contact, Landmark, LayoutDashboard, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const SECCIONES = [
   { href: "/pagos", etiqueta: "Pagos", icono: Banknote },
   { href: "/efectivo", etiqueta: "Efectivo", icono: Wallet },
   { href: "/socios", etiqueta: "Socios", icono: Users },
+  { href: "/anulaciones", etiqueta: "Anulaciones", icono: Ban },
 ] as const;
 
 const estaActiva = (href: string, pathname: string) =>

@@ -163,7 +163,7 @@ export default async function SociosPage({ searchParams }: PageProps<"/socios">)
                   ))}
                   <th className={cn(th, "text-right")}>Total USDT</th>
                   <th className={cn(th, "text-left")}>Registró</th>
-                  <th className={th}>
+                  <th className={cn(th, "relative")}>
                     <span className="sr-only">Acciones</span>
                   </th>
                 </tr>

@@ -1,0 +1,34 @@
+import { LogOut } from "lucide-react";
+import { salir } from "@/app/login/actions";
+import { NavLateral } from "@/components/app/nav-lateral";
+import { Button } from "@/components/ui/button";
+import type { Usuario } from "@/lib/auth";
+
+/** Marca, secciones y usuario: lo mismo en la barra fija y en el menú móvil. */
+export function ContenidoLateral({ usuario }: { usuario: Pick<Usuario, "nombre" | "email"> }) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex h-12 shrink-0 flex-col justify-center border-b border-outline-variant px-margin">
+        <span className="text-headline-sm text-on-surface">Cierre &amp; Reparto</span>
+        <span className="text-label-caps text-on-surface-variant uppercase">Admin financiero (ARS / USDT)</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto py-gutter">
+        <NavLateral />
+      </div>
+
+      <div className="flex items-center gap-space-sm border-t border-outline-variant px-margin py-gutter">
+        <span className="size-2 shrink-0 rounded-full bg-tertiary" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-body-md text-on-surface">{usuario.nombre}</p>
+          <p className="truncate text-body-sm text-on-surface-variant">{usuario.email}</p>
+        </div>
+        <form action={salir}>
+          <Button type="submit" variant="ghost" size="icon-sm" aria-label="Salir" title="Salir">
+            <LogOut aria-hidden />
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}

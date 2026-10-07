@@ -140,7 +140,7 @@ export default async function PagosPage({ searchParams }: PageProps<"/pagos">) {
                 <th className={cn(th, "text-right")}>USDT</th>
                 <th className={cn(th, "text-left")}>Imputado a</th>
                 <th className={cn(th, "text-left")}>Registró</th>
-                <th className={th}>
+                <th className={cn(th, "relative")}>
                   <span className="sr-only">Acciones</span>
                 </th>
               </tr>

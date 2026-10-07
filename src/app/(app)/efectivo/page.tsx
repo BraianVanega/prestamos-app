@@ -137,7 +137,7 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
                   <th className={cn(th, "text-right")}>Lotes</th>
                   <th className={cn(th, "text-left")}>Notas</th>
                   <th className={cn(th, "text-left")}>Registró</th>
-                  <th className={th}>
+                  <th className={cn(th, "relative")}>
                     <span className="sr-only">Acciones</span>
                   </th>
                 </tr>

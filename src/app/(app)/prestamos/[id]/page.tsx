@@ -377,12 +377,12 @@ function Cargos({ f }: { f: FichaPrestamo }) {
             <li
               key={c.id}
               className={cn(
-                "flex items-center gap-space-md rounded-lg border border-outline-variant bg-surface-container-low px-space-md py-space-sm",
+                "flex flex-wrap items-center gap-x-space-md gap-y-space-xs rounded-lg border border-outline-variant bg-surface-container-low px-space-md py-space-sm",
                 c.anulado && "opacity-60",
               )}
             >
               <span className={cn("size-2 shrink-0 rounded-full", c.ars.gt(0) ? "bg-error" : "bg-tertiary")} aria-hidden />
-              <div className="flex min-w-0 flex-col">
+              <div className="flex min-w-0 flex-1 basis-56 flex-col">
                 <span className={cn("text-body-md font-medium text-on-surface", c.anulado && "line-through")}>
                   {TIPOS_CARGO[c.tipo]}
                   {c.cuotaNumero !== null && (

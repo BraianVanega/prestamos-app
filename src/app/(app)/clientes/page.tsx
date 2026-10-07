@@ -3,6 +3,7 @@ import { Plus, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BadgeEstadoCliente } from "@/components/app/badge-estado-cliente";
+import { Pestanas } from "@/components/app/pestanas";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -98,26 +99,15 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
       </div>
 
       <div className="flex flex-wrap items-center gap-gutter">
-        <nav aria-label="Filtrar por estado" className="flex gap-space-xs">
-          {pestañas.map((p) => {
-            const activa = p.valor === estado;
-            return (
-              <Link
-                key={p.etiqueta}
-                href={hrefCon({ estado: p.valor })}
-                aria-current={activa ? "page" : undefined}
-                className={cn(
-                  "rounded-full px-space-md py-space-xs text-body-md font-medium transition-colors",
-                  activa
-                    ? "bg-primary-container text-on-primary"
-                    : "bg-surface-container-low text-on-surface hover:bg-surface-container",
-                )}
-              >
-                {p.etiqueta} <span className="font-mono tabular-nums">({p.cantidad})</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <Pestanas
+          etiqueta="Filtrar por estado"
+          items={pestañas.map((p) => ({
+            etiqueta: p.etiqueta,
+            cantidad: p.cantidad,
+            href: hrefCon({ estado: p.valor }),
+            activa: p.valor === estado,
+          }))}
+        />
 
         <form action="/clientes" role="search" className="relative ml-auto w-full max-w-sm">
           {estado && <input type="hidden" name="estado" value={estado} />}

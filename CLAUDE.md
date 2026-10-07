@@ -61,6 +61,8 @@ Sistema de gestión de préstamos (ARS / USDT) para una sociedad con dos socios.
   Montos con formato `es-AR` (`1.234.567,89`).
 - Componentes de **shadcn/ui** (`pnpm dlx shadcn@latest add <componente>`) en
   `src/components/ui`; no reinventar lo que shadcn ya resuelve.
+  Después de cada `add`, cambiar `import { cn } from "cn"` por `import { cn } from "@/lib/utils"`:
+  ese `cn` conoce los tokens de DESIGN.md (si no, `text-label-caps` se pierde junto a un color).
 - Diseño según `design/DESIGN.md` y las capturas `design/*.png`: revisarlas antes
   de construir o cambiar una pantalla.
 - **Sin colores hardcodeados**: nada de hex/rgb/oklch en componentes ni clases de la

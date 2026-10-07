@@ -389,7 +389,7 @@ export function asientosIngresoUsdt(params: {
  * Reconocimiento por recuperación de costo de USDT que entran a cada préstamo:
  * baja la cartera hasta 0 y lo que sobra es ganancia, repartida según `pct_ganancia`.
  */
-function asientosRecupero(
+export function asientosRecupero(
   partes: { prestamoId: string; usdt: Decimal }[],
   cartera: Map<string, Decimal.Value>,
   participaciones: Map<string, ParticipacionGanancia[]>,

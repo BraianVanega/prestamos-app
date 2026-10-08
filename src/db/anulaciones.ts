@@ -42,6 +42,13 @@ export interface ContextoAnulacion {
   usuarioId: string;
   /** Fecha de la anulación (las contratransacciones van a esta fecha). */
   hoy: Fecha;
+  /**
+   * Corrección de un préstamo: se rebobina todo en orden (del más nuevo al más
+   * viejo) para volver a registrarlo, así que no se exige anular antes lo
+   * posterior, y cada contratransacción va a la fecha de la original (la
+   * ganancia de cada mes queda como si se hubiera cargado bien desde el principio).
+   */
+  correccion?: boolean;
 }
 
 export interface ResultadoAnulacion {
@@ -102,8 +109,8 @@ async function huellas(tx: Tx, condicion: SQL | undefined): Promise<Huella[]> {
 }
 
 /** Corta si hay movimientos posteriores que se calcularon sobre lo que se anula. */
-async function verificarSinPosteriores(tx: Tx, objetivo: Huella[]) {
-  if (objetivo.length === 0) return;
+async function verificarSinPosteriores(tx: Tx, objetivo: Huella[], ctx: ContextoAnulacion) {
+  if (objetivo.length === 0 || ctx.correccion) return;
   const desde = Math.min(...objetivo.map((t) => t.orden));
   const candidatas = await huellas(tx, sql`${transacciones.id} in (select transaccion_id from asientos where id > ${desde})`);
   const bloquean = transaccionesPosteriores(objetivo, candidatas);
@@ -138,7 +145,7 @@ async function revertir(tx: Tx, ids: string[], motivo: string, ctx: ContextoAnul
     const [t] = await tx
       .insert(transacciones)
       .values({
-        fecha: ctx.hoy,
+        fecha: ctx.correccion ? orig!.fecha : ctx.hoy,
         tipo: "anulacion",
         descripcion: `Anulación de ${(TIPOS_TX[orig!.tipo] ?? orig!.tipo).toLowerCase()} del ${formatearFecha(orig!.fecha)}${orig!.descripcion ? `: ${orig!.descripcion}` : ""}`,
         prestamoId: orig!.prestamoId,
@@ -215,7 +222,7 @@ export async function anularPago(tx: Tx, d: { id: string; motivo: string }, ctx:
   }
 
   const objetivo = await huellas(tx, eq(transacciones.pagoId, d.id));
-  await verificarSinPosteriores(tx, objetivo);
+  await verificarSinPosteriores(tx, objetivo, ctx);
   const transaccionId = await revertir(
     tx,
     objetivo.sort((a, b) => b.orden - a.orden).map((t) => t.id),
@@ -245,7 +252,7 @@ export async function anularConversion(tx: Tx, d: { id: string; motivo: string }
   if (await yaAnulada(tx, "conversiones", d.id)) throw new ErrorAnulacion("La conversión ya está anulada.");
 
   const objetivo = await huellas(tx, eq(transacciones.conversionId, d.id));
-  await verificarSinPosteriores(tx, objetivo);
+  await verificarSinPosteriores(tx, objetivo, ctx);
   const transaccionId = await revertir(
     tx,
     objetivo.sort((a, b) => b.orden - a.orden).map((t) => t.id),
@@ -336,7 +343,7 @@ export async function anularPrestamo(tx: Tx, d: { id: string; motivo: string }, 
   }
 
   const objetivo = await huellas(tx, and(eq(transacciones.prestamoId, d.id), eq(transacciones.tipo, "desembolso")));
-  await verificarSinPosteriores(tx, objetivo);
+  await verificarSinPosteriores(tx, objetivo, ctx);
   const transaccionId = await revertir(tx, objetivo.map((t) => t.id), d.motivo, ctx);
   await tx.insert(anulaciones).values({ entidad: "prestamos", entidadId: d.id, transaccionId, motivo: d.motivo, creadoPor: ctx.usuarioId });
   await tx.update(prestamos).set({ estado: "anulado", fechaCierre: ctx.hoy }).where(eq(prestamos.id, d.id));
@@ -460,7 +467,7 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
       return {
         ...base,
         entidad: "prestamos",
-        descripcion: `Préstamo ${numeroPrestamo(p.numero)} de $${formatearArs(p.arsCapital)} a ${p.cliente} (corregido)`,
+        descripcion: `Préstamo ${numeroPrestamo(p.numero)} de $${formatearArs(p.arsCapital)} a ${p.cliente} (editado)`,
         enlace: `/prestamos/${p.id}`,
       };
     }

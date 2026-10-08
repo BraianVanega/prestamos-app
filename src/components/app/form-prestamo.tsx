@@ -58,12 +58,14 @@ export interface ValoresPrestamo {
   notas: string;
 }
 
-/** Corrección de un préstamo mal cargado: se anula y se da de alta con estos datos. */
+/** Edición de un préstamo: se anula y se da de alta con estos datos (los cobros se vuelven a imputar). */
 export interface Correccion {
   /** "#PR-0012" */
   numero: string;
   /** Ficha del préstamo original. */
   volver: string;
+  /** Lo cobrado hasta ahora sobre el préstamo (pagos vigentes); null si no tiene cobros. */
+  cobros: { pagos: number; ars: string; primero: Fecha } | null;
 }
 
 const ITEMS_FRECUENCIA = (Object.keys(FRECUENCIAS) as Frecuencia[]).map((f) => ({
@@ -195,11 +197,11 @@ export function FormPrestamo({
           <ArrowLeft className="size-4" aria-hidden />
         </Link>
         <div className="flex flex-col">
-          <span className="text-label-caps text-primary uppercase">{correccion ? "Corrección de carga" : "Originación de crédito"}</span>
+          <span className="text-label-caps text-primary uppercase">{correccion ? "Edición de préstamo" : "Originación de crédito"}</span>
           <h1 className="text-headline-xl text-on-surface">
             {correccion ? (
               <>
-                Corregir <span className="font-mono tabular-nums">{correccion.numero}</span>
+                Editar <span className="font-mono tabular-nums">{correccion.numero}</span>
               </>
             ) : (
               "Nuevo préstamo"
@@ -208,7 +210,7 @@ export function FormPrestamo({
         </div>
         <Button type="button" className="ml-auto h-9 gap-space-sm px-margin" onClick={pedirConfirmacion} disabled={pendiente}>
           {correccion ? <PencilLine aria-hidden /> : <CircleDollarSign aria-hidden />}
-          {correccion ? (pendiente ? "Guardando…" : "Guardar corrección") : pendiente ? "Desembolsando…" : "Generar y desembolsar"}
+          {correccion ? (pendiente ? "Guardando…" : "Guardar cambios") : pendiente ? "Desembolsando…" : "Generar y desembolsar"}
         </Button>
       </div>
 
@@ -217,12 +219,32 @@ export function FormPrestamo({
       <div className="grid grid-cols-1 items-start gap-margin xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)]">
         <fieldset disabled={pendiente} className="flex min-w-0 flex-col gap-margin">
           {correccion && (
-            <Panel icono={<PencilLine aria-hidden />} titulo="Motivo de la corrección">
+            <Panel icono={<PencilLine aria-hidden />} titulo="Motivo del cambio">
               <p className="text-body-md text-on-surface-variant">
                 Se anula <span className="font-mono tabular-nums">{correccion.numero}</span> (se revierte su desembolso) y se da de alta
                 un préstamo nuevo con estos datos. El original queda en el historial como anulado.
               </p>
-              <Campo id="motivo" etiqueta="Qué estaba mal" error={err("motivo")}>
+              {correccion.cobros && (
+                <div className="flex flex-col gap-space-xs rounded-lg bg-surface-container-low p-space-md text-body-md text-on-surface">
+                  <p>
+                    Ya tiene{" "}
+                    <span className="font-mono tabular-nums">
+                      {correccion.cobros.pagos} {correccion.cobros.pagos === 1 ? "cobro" : "cobros"}
+                    </span>{" "}
+                    por <span className="font-mono tabular-nums">${formatearArs(correccion.cobros.ars)}</span>. Lo cobrado no cambia: cada cobro
+                    se vuelve a imputar con las condiciones nuevas (misma fecha, monto y TC).
+                  </p>
+                  <ul className="list-disc pl-space-lg text-body-sm text-on-surface-variant">
+                    <li>Si ahora debe menos de lo que pagó, la diferencia queda como saldo a favor del cliente.</li>
+                    <li>La mora se recalcula con el cronograma nuevo; los descuentos pasan a la cuota del mismo número.</li>
+                    <li>
+                      El cliente no se puede cambiar y el desembolso no puede ser posterior al{" "}
+                      <span className="font-mono tabular-nums">{formatearFecha(correccion.cobros.primero)}</span> (primer cobro).
+                    </li>
+                  </ul>
+                </div>
+              )}
+              <Campo id="motivo" etiqueta="Qué se cambia y por qué" error={err("motivo")}>
                 <Textarea
                   id="motivo"
                   name="motivo"
@@ -251,6 +273,7 @@ export function FormPrestamo({
           >
             <Campo id="cliente" etiqueta="Cliente" error={err("clienteId")}>
               <Combobox
+                disabled={!!correccion?.cobros}
                 items={clientes}
                 value={cliente}
                 onValueChange={(c: OpcionCliente | null) => {
@@ -408,7 +431,7 @@ export function FormPrestamo({
       <AlertDialog open={confirmando} onOpenChange={setConfirmando}>
         <AlertDialogContent className="rounded-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>{correccion ? `Confirmá la corrección de ${correccion.numero}` : "Confirmá el desembolso"}</AlertDialogTitle>
+            <AlertDialogTitle>{correccion ? `Confirmá los cambios en ${correccion.numero}` : "Confirmá el desembolso"}</AlertDialogTitle>
             <AlertDialogDescription render={<div />}>
               {calculo && cliente && (
                 <dl className="grid grid-cols-[auto_1fr] gap-x-margin gap-y-space-xs text-body-md">
@@ -428,8 +451,8 @@ export function FormPrestamo({
               )}
               <p className="mt-space-md text-body-sm text-on-surface-variant">
                 {correccion
-                  ? `${correccion.numero} queda anulado y su desembolso vuelve a caja. El préstamo corregido sale con número nuevo.`
-                  : "Si después encontrás un error de carga, se corrige con Editar en la ficha mientras no tenga pagos."}
+                  ? `${correccion.numero} queda anulado y su desembolso vuelve a caja. El préstamo editado sale con número nuevo${correccion.cobros ? " y con los cobros reimputados" : ""}.`
+                  : "Si después hay que cambiar algo, se hace con Editar en la ficha."}
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -441,7 +464,7 @@ export function FormPrestamo({
                 formRef.current?.requestSubmit();
               }}
             >
-              {correccion ? "Corregir" : "Desembolsar"}
+              {correccion ? "Guardar" : "Desembolsar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

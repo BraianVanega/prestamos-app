@@ -102,16 +102,18 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
           </BadgeRiesgo>
         )}
         {vigente && plan.diasAtraso === 0 && plan.proxima && <BadgeRiesgo nivel="verde">Al día</BadgeRiesgo>}
-        {vigente && (
+        {(vigente || p.estado === "cancelado") && (
           <div className="ml-auto flex flex-wrap gap-space-sm">
-            <Link href={`/prestamos/${p.id}/editar`} className={cn(buttonVariants({ variant: "outline" }), "gap-space-sm")}>
+            <Link href={`/prestamos/${p.id}/editar`} className={cn(buttonVariants({ variant: vigente ? "outline" : "default" }), "gap-space-sm")}>
               <PencilLine aria-hidden />
               Editar
             </Link>
-            <Link href={`/pagos/nuevo?cliente=${cliente.id}`} className={cn(buttonVariants(), "gap-space-sm")}>
-              <Wallet aria-hidden />
-              Registrar cobro
-            </Link>
+            {vigente && (
+              <Link href={`/pagos/nuevo?cliente=${cliente.id}`} className={cn(buttonVariants(), "gap-space-sm")}>
+                <Wallet aria-hidden />
+                Registrar cobro
+              </Link>
+            )}
           </div>
         )}
       </div>
@@ -120,8 +122,8 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
         <div role="note" className="flex flex-wrap items-start gap-space-sm rounded-lg border border-riesgo-rojo-borde bg-riesgo-rojo-bg px-space-md py-space-sm text-body-md text-riesgo-rojo-fg">
           <Ban className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p className="min-w-0 flex-1">
-            Anulado por corrección de carga el <span className="font-mono tabular-nums">{formatearFechaHora(f.anulacion.en)}</span> por{" "}
-            {f.anulacion.usuario}: {f.anulacion.motivo}. Su desembolso se revirtió y no cuenta en caja ni en cartera.
+            Anulado por edición el <span className="font-mono tabular-nums">{formatearFechaHora(f.anulacion.en)}</span> por{" "}
+            {f.anulacion.usuario}: {f.anulacion.motivo}. Su desembolso se revirtió y no cuenta en caja ni en cartera; sus cobros se reimputaron al préstamo nuevo.
             {f.anulacion.reemplazo && (
               <>
                 {" "}
@@ -139,11 +141,11 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
         <p className="flex items-center gap-space-sm text-body-md text-on-surface-variant">
           <PencilLine className="size-4 shrink-0" aria-hidden />
           <span>
-            Corrige a{" "}
+            Reemplaza a{" "}
             <Link href={`/prestamos/${f.corrigeA.id}`} className="font-mono text-primary tabular-nums hover:underline">
               {numeroPrestamo(f.corrigeA.numero)}
             </Link>
-            , anulado por error de carga.
+            , anulado al editarlo.
           </span>
         </p>
       )}

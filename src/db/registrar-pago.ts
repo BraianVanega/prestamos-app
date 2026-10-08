@@ -251,8 +251,10 @@ const filaAsiento = (transaccionId: string, a: Asiento) => ({
 export async function insertarPago(
   tx: Tx,
   d: NuevoPago,
-  ctx: { usuarioId: string },
+  ctx: { usuarioId: string; creadoEn?: SQL },
 ): Promise<{ pagoId: string | null; prestamos: string[]; cancelados: string[] }> {
+  // Todo lo de la operación lleva el mismo instante (agrupa la operación).
+  const alta = { creadoPor: ctx.usuarioId, ...(ctx.creadoEn && { creadoEn: ctx.creadoEn }) };
   const [cliente] = await tx
     .select({ id: clientes.id, nombre: clientes.nombre })
     .from(clientes)
@@ -289,7 +291,7 @@ export async function insertarPago(
     })),
   ];
   if (nuevosCargos.length) {
-    await tx.insert(cargos).values(nuevosCargos.map((c) => ({ ...c, creadoPor: ctx.usuarioId })));
+    await tx.insert(cargos).values(nuevosCargos.map((c) => ({ ...c, ...alta })));
   }
 
   // Cartera y participaciones de los préstamos que reciben algo; la cartera se
@@ -325,7 +327,7 @@ export async function insertarPago(
     cuotaId: l.cuotaId,
     concepto: l.concepto,
     ars: l.ars.toFixed(DECIMALES.ars),
-    creadoPor: ctx.usuarioId,
+    ...alta,
   });
 
   // 1. Saldo a favor aplicado, del pago más viejo al más nuevo.
@@ -341,7 +343,7 @@ export async function insertarPago(
         descripcion: `Aplicación de saldo a favor de $${formatearArs(a.aplicado)} (pago del ${formatearFecha(origen.fecha)}) → ${destino(a.porPrestamo, false)}`,
         prestamoId: a.porPrestamo.length === 1 ? a.porPrestamo[0]!.prestamoId : null,
         pagoId: origen.pagoId,
-        creadoPor: ctx.usuarioId,
+        ...alta,
       })
       .returning({ id: transacciones.id });
     await asentar(
@@ -369,7 +371,7 @@ export async function insertarPago(
         tcSalida: d.tcSalida?.toFixed(DECIMALES.tc) ?? null,
         metodo: d.metodo,
         notas: d.notas,
-        creadoPor: ctx.usuarioId,
+        ...alta,
       })
       .returning({ id: pagos.id });
     pagoId = pago!.id;
@@ -384,7 +386,7 @@ export async function insertarPago(
         descripcion: `Cobro ${d.tipo === "efectivo" ? "en efectivo" : "por transferencia"} de $${formatearArs(d.ars)} → ${destino(porPrestamo, imp.pago.saldoFavor.gt(0))}`,
         prestamoId: porPrestamo.length === 1 ? porPrestamo[0]!.prestamoId : null,
         pagoId,
-        creadoPor: ctx.usuarioId,
+        ...alta,
       })
       .returning({ id: transacciones.id });
     await asentar(

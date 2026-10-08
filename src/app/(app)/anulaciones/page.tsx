@@ -20,7 +20,7 @@ const DONDE = [
   ["Mora, descuentos y ajustes", "desde la ficha del préstamo."],
   ["Conversiones", "desde Efectivo, en el historial de conversiones."],
   ["Aportes", "desde Socios, en el historial de aportes."],
-  ["Préstamos mal cargados", "con Editar en la ficha del préstamo (se anula y se carga corregido)."],
+  ["Préstamos", "con Editar en la ficha del préstamo: se anula y se da de alta con los cambios; sus cobros se reimputan."],
 ] as const;
 
 export default async function AnulacionesPage() {

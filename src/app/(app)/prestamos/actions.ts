@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { insertarPrestamo } from "@/db/alta-prestamo";
-import { anularPrestamo, ErrorAnulacion } from "@/db/anulaciones";
+import { ErrorAnulacion } from "@/db/anulaciones";
+import { corregirPrestamo as corregir } from "@/db/correccion-prestamo";
+import { ErrorImputacion } from "@/db/registrar-pago";
 import { clientes, participantes } from "@/db/schema";
 import { escribir, usuarioActual } from "@/lib/auth";
 import { hoyArgentina } from "@/lib/hoy";
@@ -74,8 +76,9 @@ export async function crearPrestamo(_prev: EstadoFormPrestamo, form: FormData): 
 }
 
 /**
- * Corrige un préstamo mal cargado: en una sola transacción anula el original
- * (revierte el desembolso) y da de alta el corregido, que queda vinculado.
+ * Edita un préstamo: en una sola transacción anula el original y da de alta el
+ * corregido, vinculado. Si tiene cobros, se vuelven a imputar sobre el nuevo
+ * (lo cobrado no cambia; ver `corregirPrestamo` en db).
  */
 export async function corregirPrestamo(id: string, _prev: EstadoFormPrestamo, form: FormData): Promise<EstadoFormPrestamo> {
   const usuario = await usuarioActual();
@@ -89,14 +92,11 @@ export async function corregirPrestamo(id: string, _prev: EstadoFormPrestamo, fo
   try {
     nuevo = await escribir(
       usuario,
-      async (tx) => {
-        await anularPrestamo(tx, { id, motivo: motivoLimpio }, { usuarioId: usuario.id, hoy: hoyArgentina() });
-        return insertarPrestamo(tx, datos, { usuarioId: usuario.id, sociedadId, corrigeAId: id });
-      },
+      (tx) => corregir(tx, { id, datos, motivo: motivoLimpio }, { usuarioId: usuario.id, hoy: hoyArgentina(), sociedadId }),
       `Corrección de préstamo: ${motivoLimpio}`,
     );
   } catch (e) {
-    if (e instanceof ErrorAnulacion) return { error: e.message };
+    if (e instanceof ErrorAnulacion || e instanceof ErrorImputacion) return { error: e.message };
     throw e;
   }
 

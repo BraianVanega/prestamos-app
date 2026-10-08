@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, sql, type SQL } from "drizzle-orm";
 import type { db, Tx } from "./index";
 import {
   anulaciones,
@@ -111,7 +111,12 @@ export interface NuevaConversion {
  * reconoce ganancia o deja saldo a favor. Los pagos se bloquean para que dos
  * conversiones simultáneas no conviertan el mismo efectivo.
  */
-export async function insertarConversion(tx: Tx, d: NuevaConversion, ctx: { usuarioId: string }): Promise<{ conversionId: string; prestamos: string[] }> {
+export async function insertarConversion(
+  tx: Tx,
+  d: NuevaConversion,
+  ctx: { usuarioId: string; creadoEn?: SQL },
+): Promise<{ conversionId: string; prestamos: string[] }> {
+  const alta = { creadoPor: ctx.usuarioId, ...(ctx.creadoEn && { creadoEn: ctx.creadoEn }) };
   const ids = [...d.lotes.keys()];
   if (ids.length) await tx.select({ id: pagos.id }).from(pagos).where(inArray(pagos.id, ids)).for("update");
 
@@ -127,7 +132,7 @@ export async function insertarConversion(tx: Tx, d: NuevaConversion, ctx: { usua
       tc: d.tc.toFixed(DECIMALES.tc),
       usdtResultante: usdt.toFixed(DECIMALES.usdt),
       notas: d.notas,
-      creadoPor: ctx.usuarioId,
+      ...alta,
     })
     .returning({ id: conversiones.id });
   const conversionId = conversion!.id;
@@ -164,7 +169,7 @@ export async function insertarConversion(tx: Tx, d: NuevaConversion, ctx: { usua
         prestamoId: p.porPrestamo.length === 1 ? p.porPrestamo[0]!.prestamoId : null,
         pagoId: l.pagoId,
         conversionId,
-        creadoPor: ctx.usuarioId,
+        ...alta,
       })
       .returning({ id: transacciones.id });
     const { asientos: lineas } = asientosConversionLote({

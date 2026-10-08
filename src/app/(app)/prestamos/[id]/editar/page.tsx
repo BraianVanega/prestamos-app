@@ -1,4 +1,4 @@
-import { and, asc, eq, notInArray, or } from "drizzle-orm";
+import { and, asc, eq, notInArray, or, sql } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { Alerta } from "@/components/app/campos";
 import { FormPrestamo, type OpcionCliente } from "@/components/app/form-prestamo";
 import { db } from "@/db";
 import { anulaciones, clientes, imputaciones, prestamos } from "@/db/schema";
+import type { Fecha } from "@/engine/fechas";
 import { DIAS_GRACIA_SUGERIDOS, MORA_PCT_SUGERIDA } from "@/engine/mora";
 import { formatearDocumento } from "@/lib/formato";
 import { hoyArgentina } from "@/lib/hoy";
@@ -26,9 +27,13 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
   const volver = `/prestamos/${p.id}`;
 
   const pagosAnulados = db.select({ id: anulaciones.entidadId }).from(anulaciones).where(eq(anulaciones.entidad, "pagos"));
-  const [conPagos, opciones] = await Promise.all([
+  const [[cobrado], opciones] = await Promise.all([
     db
-      .selectDistinct({ id: imputaciones.pagoId })
+      .select({
+        pagos: sql<number>`count(distinct ${imputaciones.pagoId})::int`,
+        ars: sql<string>`coalesce(sum(${imputaciones.ars}), 0)`,
+        primero: sql<Fecha | null>`min(${imputaciones.fecha})`,
+      })
       .from(imputaciones)
       .where(and(eq(imputaciones.prestamoId, id), notInArray(imputaciones.pagoId, pagosAnulados))),
     db
@@ -38,12 +43,7 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
       .orderBy(asc(clientes.nombre)),
   ]);
 
-  const bloqueo =
-    p.estado !== "vigente"
-      ? `${numero} está ${p.estado}: solo se corrige un préstamo vigente.`
-      : conPagos.length
-        ? `${numero} tiene ${conPagos.length === 1 ? "un pago vigente" : `${conPagos.length} pagos vigentes`}. Para corregirlo, anulá primero esos pagos desde el historial de la ficha (del más nuevo al más viejo).`
-        : null;
+  const bloqueo = p.estado !== "vigente" && p.estado !== "cancelado" ? `${numero} está ${p.estado}: no se puede editar.` : null;
   if (bloqueo) {
     return (
       <section className="flex flex-col gap-margin">
@@ -52,7 +52,7 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
           Volver a <span className="font-mono tabular-nums">{numero}</span>
         </Link>
         <h1 className="text-headline-xl text-on-surface">
-          Corregir <span className="font-mono tabular-nums">{numero}</span>
+          Editar <span className="font-mono tabular-nums">{numero}</span>
         </h1>
         <Alerta>{bloqueo}</Alerta>
       </section>
@@ -73,7 +73,11 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
       hoy={hoyArgentina()}
       moraSugerida={MORA_PCT_SUGERIDA}
       graciaSugerida={DIAS_GRACIA_SUGERIDOS}
-      correccion={{ numero, volver }}
+      correccion={{
+        numero,
+        volver,
+        cobros: cobrado && cobrado.pagos > 0 ? { pagos: cobrado.pagos, ars: cobrado.ars, primero: cobrado.primero! } : null,
+      }}
       inicial={{
         fechaDesembolso: p.fechaDesembolso,
         arsCapital: textoEditable(p.arsCapital),

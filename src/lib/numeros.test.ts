@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatearNumero, parsearDecimal } from "./numeros";
+import { formatearNumero, parsearDecimal, textoEditable } from "./numeros";
 
 const p = (s: string) => parsearDecimal(s)?.toString() ?? null;
 
@@ -49,5 +49,17 @@ describe("formatearNumero", () => {
   it("negativos y cero", () => {
     expect(formatearNumero("-1234.5", 2)).toBe("-1.234,50");
     expect(formatearNumero("-0.001", 2)).toBe("0,00");
+  });
+});
+
+describe("textoEditable", () => {
+  it("pasa lo guardado en la base a texto es-AR sin ceros de más", () => {
+    expect(textoEditable("3500000.00")).toBe("3500000");
+    expect(textoEditable("1285.500000")).toBe("1285,5");
+    expect(textoEditable("9.3333")).toBe("9,3333");
+  });
+
+  it("vuelve a leerse igual con parsearDecimal", () => {
+    expect(parsearDecimal(textoEditable("1285.123456"))!.toFixed(6)).toBe("1285.123456");
   });
 });

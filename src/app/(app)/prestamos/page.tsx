@@ -18,11 +18,12 @@ export const metadata: Metadata = { title: "Préstamos · Cierre & Reparto" };
 const POR_PAGINA = 25;
 
 const FILTROS = {
-  todos: { etiqueta: "Todos", incluye: () => true },
+  todos: { etiqueta: "Todos", incluye: (p: ResumenPrestamo) => p.estado !== "anulado" },
   "al-dia": { etiqueta: "Al día", incluye: (p: ResumenPrestamo) => p.estado === "vigente" && p.plan.diasAtraso === 0 },
   "en-mora": { etiqueta: "En mora", incluye: (p: ResumenPrestamo) => p.estado === "vigente" && p.plan.diasAtraso > 0 },
   finalizados: { etiqueta: "Finalizados", incluye: (p: ResumenPrestamo) => p.estado === "cancelado" || p.estado === "castigado" },
   refinanciados: { etiqueta: "Refinanciados", incluye: (p: ResumenPrestamo) => p.estado === "refinanciado" },
+  anulados: { etiqueta: "Anulados", incluye: (p: ResumenPrestamo) => p.estado === "anulado" },
 } as const;
 type Filtro = keyof typeof FILTROS;
 const esFiltro = (v: unknown): v is Filtro => typeof v === "string" && v in FILTROS;
@@ -94,12 +95,16 @@ export default async function PrestamosPage({ searchParams }: PageProps<"/presta
       <div className="flex flex-wrap items-center gap-gutter">
         <Pestanas
           etiqueta="Filtrar por estado"
-          items={(Object.keys(FILTROS) as Filtro[]).map((f) => ({
-            etiqueta: FILTROS[f].etiqueta,
-            cantidad: buscados.filter(FILTROS[f].incluye).length,
-            href: href({ estado: f }),
-            activa: f === filtro,
-          }))}
+          items={(Object.keys(FILTROS) as Filtro[])
+            .map((f) => ({
+              etiqueta: FILTROS[f].etiqueta,
+              cantidad: buscados.filter(FILTROS[f].incluye).length,
+              href: href({ estado: f }),
+              activa: f === filtro,
+              // Los anulados (correcciones de carga) solo aparecen si hay.
+              oculta: f === "anulados" && f !== filtro && !buscados.some(FILTROS[f].incluye),
+            }))
+            .filter((i) => !i.oculta)}
         />
         <form action="/prestamos" role="search" className="relative ml-auto w-full max-w-sm">
           {filtro !== "todos" && <input type="hidden" name="estado" value={filtro} />}
@@ -259,7 +264,7 @@ function FilaPrestamo({ p, num }: { p: ResumenPrestamo; num: string }) {
 
 function ProximaCuota({ p }: { p: ResumenPrestamo }) {
   if (p.estado !== "vigente") {
-    const texto = { cancelado: "Cancelado", castigado: "Castigado", refinanciado: "Refinanciado" }[p.estado];
+    const texto = { cancelado: "Cancelado", castigado: "Castigado", refinanciado: "Refinanciado", anulado: "Anulado" }[p.estado];
     return <span className="font-medium text-on-surface-variant">{texto}</span>;
   }
   const proxima = p.plan.proxima;

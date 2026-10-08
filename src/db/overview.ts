@@ -65,6 +65,8 @@ export async function cargarOverview(hoy: Fecha): Promise<Overview> {
           and(
             inArray(asientos.cuenta, ["cartera", "ganancia"]),
             notInArray(transacciones.tipo, ["desembolso", "apertura"]),
+            // La reversa de un desembolso (préstamo corregido) tampoco es recupero.
+            sql`not exists (select 1 from transacciones original where original.id = ${transacciones.anulaTransaccionId} and original.tipo = 'desembolso')`,
             sql`to_char(${transacciones.fecha}, 'YYYY-MM') = ${mesActual}`,
           ),
         )

@@ -1,7 +1,7 @@
 "use client";
 
 import type Decimal from "decimal.js";
-import { ArrowLeft, CalendarRange, CircleDollarSign, Lock, SlidersHorizontal, UserPlus, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarRange, CircleDollarSign, Lock, PencilLine, SlidersHorizontal, UserPlus, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useMemo, useRef, useState } from "react";
 import type { EstadoFormPrestamo } from "@/app/(app)/prestamos/actions";
@@ -32,7 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { calcularPlan, proyectarUsdt, tasaTotalSugerida } from "@/engine/cronograma";
 import type { Fecha, Frecuencia } from "@/engine/fechas";
 import { formatearFecha } from "@/lib/formato";
-import { formatearArs, formatearPct, formatearTc, formatearUsdt, parsearDecimal } from "@/lib/numeros";
+import { formatearArs, formatearPct, formatearTc, formatearUsdt, parsearDecimal, textoEditable } from "@/lib/numeros";
 import { FRECUENCIAS, type CamposPrestamo } from "@/lib/prestamos";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +43,28 @@ export interface OpcionCliente {
 }
 
 type Accion = (prev: EstadoFormPrestamo, form: FormData) => Promise<EstadoFormPrestamo>;
+
+/** Valores del formulario como texto editable (es-AR). */
+export interface ValoresPrestamo {
+  fechaDesembolso: Fecha;
+  arsCapital: string;
+  tcEntrada: string;
+  tasaMensualPct: string;
+  frecuencia: Frecuencia;
+  nCuotas: string;
+  tasaTotalPct: string;
+  moraPct: string;
+  diasGracia: string;
+  notas: string;
+}
+
+/** Corrección de un préstamo mal cargado: se anula y se da de alta con estos datos. */
+export interface Correccion {
+  /** "#PR-0012" */
+  numero: string;
+  /** Ficha del préstamo original. */
+  volver: string;
+}
 
 const ITEMS_FRECUENCIA = (Object.keys(FRECUENCIAS) as Frecuencia[]).map((f) => ({
   value: f,
@@ -59,9 +81,6 @@ function filtrarCliente(item: OpcionCliente, query: string) {
   return sinAcentos(item.label).includes(sinAcentos(q));
 }
 
-/** Decimal → texto editable es-AR sin ceros de más ("9,3333", "36"). */
-const aTexto = (d: Decimal) => d.toFixed().replace(".", ",");
-
 const entero = (s: string) => (/^\d+$/.test(s.trim()) ? Number.parseInt(s, 10) : null);
 
 export function FormPrestamo({
@@ -71,6 +90,8 @@ export function FormPrestamo({
   hoy,
   moraSugerida,
   graciaSugerida,
+  inicial,
+  correccion,
 }: {
   accion: Accion;
   clientes: OpcionCliente[];
@@ -78,32 +99,45 @@ export function FormPrestamo({
   hoy: Fecha;
   moraSugerida: string;
   graciaSugerida: number;
+  inicial?: ValoresPrestamo;
+  correccion?: Correccion;
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, {});
   const formRef = useRef<HTMLFormElement>(null);
   const [confirmando, setConfirmando] = useState(false);
 
   const [cliente, setCliente] = useState<OpcionCliente | null>(clienteInicial);
-  const [v, setV] = useState({
-    fechaDesembolso: hoy,
-    arsCapital: "",
-    tcEntrada: "",
-    tasaMensualPct: "",
-    frecuencia: "quincena" as Frecuencia,
-    nCuotas: "",
-    tasaTotalPct: "",
-    moraPct: moraSugerida,
-    diasGracia: String(graciaSugerida),
-    notas: "",
+  const [v, setV] = useState<ValoresPrestamo>(
+    () =>
+      inicial ?? {
+        fechaDesembolso: hoy,
+        arsCapital: "",
+        tcEntrada: "",
+        tasaMensualPct: "",
+        frecuencia: "quincena",
+        nCuotas: "",
+        tasaTotalPct: "",
+        moraPct: moraSugerida,
+        diasGracia: String(graciaSugerida),
+        notas: "",
+      },
+  );
+  const [motivo, setMotivo] = useState("");
+  // Al corregir, la tasa pactada se respeta si no coincide con la sugerida.
+  const [tasaTotalEditada, setTasaTotalEditada] = useState(() => {
+    if (!inicial) return false;
+    const mensual = parsearDecimal(inicial.tasaMensualPct);
+    const n = entero(inicial.nCuotas);
+    const total = parsearDecimal(inicial.tasaTotalPct);
+    return !(mensual && n && total && tasaTotalSugerida(mensual, inicial.frecuencia, n).eq(total));
   });
-  const [tasaTotalEditada, setTasaTotalEditada] = useState(false);
 
   // Los errores del servidor se ocultan campo por campo a medida que se corrigen.
-  const [corregidos, setCorregidos] = useState({ de: estado, campos: new Set<CamposPrestamo>() });
+  const [corregidos, setCorregidos] = useState({ de: estado, campos: new Set<CamposPrestamo | "motivo">() });
   if (corregidos.de !== estado) setCorregidos({ de: estado, campos: new Set() });
-  const corregir = (c: CamposPrestamo) =>
+  const corregir = (c: CamposPrestamo | "motivo") =>
     setCorregidos((prev) => (prev.campos.has(c) ? prev : { de: prev.de, campos: new Set(prev.campos).add(c) }));
-  const err = (c: CamposPrestamo) => (corregidos.campos.has(c) ? undefined : estado.errores?.[c]);
+  const err = (c: CamposPrestamo | "motivo") => (corregidos.campos.has(c) ? undefined : estado.errores?.[c]);
 
   const set = (campo: keyof typeof v) => (valor: string) => {
     setV((prev) => ({ ...prev, [campo]: valor }));
@@ -117,7 +151,7 @@ export function FormPrestamo({
     const n = entero(v.nCuotas);
     return mensual && mensual.gte(0) && n && n > 0 ? tasaTotalSugerida(mensual, v.frecuencia, n) : null;
   }, [v.tasaMensualPct, v.nCuotas, v.frecuencia]);
-  const tasaTotalTexto = tasaTotalEditada ? v.tasaTotalPct : sugerida ? aTexto(sugerida) : "";
+  const tasaTotalTexto = tasaTotalEditada ? v.tasaTotalPct : sugerida ? textoEditable(sugerida) : "";
   const tasaTotal = parsearDecimal(tasaTotalTexto);
 
   const calculo = useMemo(() => {
@@ -143,7 +177,7 @@ export function FormPrestamo({
   }, [v.arsCapital, v.tcEntrada, v.tasaMensualPct, tasaTotalTexto, v.nCuotas, v.fechaDesembolso, v.frecuencia]);
 
   const pedirConfirmacion = () => {
-    if (calculo && cliente) setConfirmando(true);
+    if (calculo && cliente && (!correccion || motivo.trim().length >= 3)) setConfirmando(true);
     else formRef.current?.requestSubmit();
   };
 
@@ -154,19 +188,27 @@ export function FormPrestamo({
 
       <div className="flex flex-wrap items-center gap-margin">
         <Link
-          href="/prestamos"
-          aria-label="Volver a préstamos"
+          href={correccion?.volver ?? "/prestamos"}
+          aria-label={correccion ? `Volver a ${correccion.numero}` : "Volver a préstamos"}
           className="flex size-9 items-center justify-center rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container"
         >
           <ArrowLeft className="size-4" aria-hidden />
         </Link>
         <div className="flex flex-col">
-          <span className="text-label-caps text-primary uppercase">Originación de crédito</span>
-          <h1 className="text-headline-xl text-on-surface">Nuevo préstamo</h1>
+          <span className="text-label-caps text-primary uppercase">{correccion ? "Corrección de carga" : "Originación de crédito"}</span>
+          <h1 className="text-headline-xl text-on-surface">
+            {correccion ? (
+              <>
+                Corregir <span className="font-mono tabular-nums">{correccion.numero}</span>
+              </>
+            ) : (
+              "Nuevo préstamo"
+            )}
+          </h1>
         </div>
         <Button type="button" className="ml-auto h-9 gap-space-sm px-margin" onClick={pedirConfirmacion} disabled={pendiente}>
-          <CircleDollarSign aria-hidden />
-          {pendiente ? "Desembolsando…" : "Generar y desembolsar"}
+          {correccion ? <PencilLine aria-hidden /> : <CircleDollarSign aria-hidden />}
+          {correccion ? (pendiente ? "Guardando…" : "Guardar corrección") : pendiente ? "Desembolsando…" : "Generar y desembolsar"}
         </Button>
       </div>
 
@@ -174,6 +216,29 @@ export function FormPrestamo({
 
       <div className="grid grid-cols-1 items-start gap-margin xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)]">
         <fieldset disabled={pendiente} className="flex min-w-0 flex-col gap-margin">
+          {correccion && (
+            <Panel icono={<PencilLine aria-hidden />} titulo="Motivo de la corrección">
+              <p className="text-body-md text-on-surface-variant">
+                Se anula <span className="font-mono tabular-nums">{correccion.numero}</span> (se revierte su desembolso) y se da de alta
+                un préstamo nuevo con estos datos. El original queda en el historial como anulado.
+              </p>
+              <Campo id="motivo" etiqueta="Qué estaba mal" error={err("motivo")}>
+                <Textarea
+                  id="motivo"
+                  name="motivo"
+                  value={motivo}
+                  onChange={(e) => {
+                    setMotivo(e.target.value);
+                    corregir("motivo");
+                  }}
+                  rows={2}
+                  maxLength={200}
+                  placeholder="Ej.: TC de entrada mal cargado"
+                  aria-invalid={!!err("motivo")}
+                />
+              </Campo>
+            </Panel>
+          )}
           <Panel
             icono={<UserRound aria-hidden />}
             titulo="Prestatario"
@@ -343,7 +408,7 @@ export function FormPrestamo({
       <AlertDialog open={confirmando} onOpenChange={setConfirmando}>
         <AlertDialogContent className="rounded-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmá el desembolso</AlertDialogTitle>
+            <AlertDialogTitle>{correccion ? `Confirmá la corrección de ${correccion.numero}` : "Confirmá el desembolso"}</AlertDialogTitle>
             <AlertDialogDescription render={<div />}>
               {calculo && cliente && (
                 <dl className="grid grid-cols-[auto_1fr] gap-x-margin gap-y-space-xs text-body-md">
@@ -362,7 +427,9 @@ export function FormPrestamo({
                 </dl>
               )}
               <p className="mt-space-md text-body-sm text-on-surface-variant">
-                Una vez creado, el préstamo no se edita: un error se corrige anulándolo.
+                {correccion
+                  ? `${correccion.numero} queda anulado y su desembolso vuelve a caja. El préstamo corregido sale con número nuevo.`
+                  : "Si después encontrás un error de carga, se corrige con Editar en la ficha mientras no tenga pagos."}
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -374,7 +441,7 @@ export function FormPrestamo({
                 formRef.current?.requestSubmit();
               }}
             >
-              Desembolsar
+              {correccion ? "Corregir" : "Desembolsar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

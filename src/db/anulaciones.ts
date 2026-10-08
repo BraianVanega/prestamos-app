@@ -307,6 +307,42 @@ export async function anularCargo(tx: Tx, d: { id: string; motivo: string }, ctx
   return { prestamos: [cargo.prestamoId], ...(await sincronizarEstados(tx, [cargo.prestamoId], ctx.hoy)) };
 }
 
+/**
+ * Anula un préstamo cargado con error (paso previo a darlo de alta corregido):
+ * se revierte el desembolso y queda en estado `anulado`. Solo un vigente sin
+ * pagos vigentes: si ya cobró algo, primero se anulan esos pagos.
+ */
+export async function anularPrestamo(tx: Tx, d: { id: string; motivo: string }, ctx: ContextoAnulacion): Promise<{ clienteId: string; numero: number }> {
+  const [p] = await tx
+    .select({ clienteId: prestamos.clienteId, numero: prestamos.numero })
+    .from(prestamos)
+    .where(eq(prestamos.id, d.id));
+  if (!p) throw new ErrorAnulacion("El préstamo no existe.");
+  // Mismo bloqueo que al registrar pagos del cliente: nadie cobra mientras se corrige.
+  await tx.select({ id: clientes.id }).from(clientes).where(eq(clientes.id, p.clienteId)).for("update");
+  const [actual] = await tx.select({ estado: prestamos.estado }).from(prestamos).where(eq(prestamos.id, d.id)).for("update");
+  if (actual!.estado === "anulado") throw new ErrorAnulacion("El préstamo ya está anulado.");
+  if (actual!.estado !== "vigente") throw new ErrorAnulacion("Solo se puede corregir un préstamo vigente.");
+
+  const anuladosPagos = tx.select({ id: anulaciones.entidadId }).from(anulaciones).where(eq(anulaciones.entidad, "pagos"));
+  const conPagos = await tx
+    .selectDistinct({ id: imputaciones.pagoId })
+    .from(imputaciones)
+    .where(and(eq(imputaciones.prestamoId, d.id), sql`${imputaciones.pagoId} not in ${anuladosPagos}`));
+  if (conPagos.length) {
+    throw new ErrorAnulacion(
+      `El préstamo tiene ${conPagos.length === 1 ? "un pago vigente" : `${conPagos.length} pagos vigentes`}: anulalos primero (del más nuevo al más viejo) y después corregilo.`,
+    );
+  }
+
+  const objetivo = await huellas(tx, and(eq(transacciones.prestamoId, d.id), eq(transacciones.tipo, "desembolso")));
+  await verificarSinPosteriores(tx, objetivo);
+  const transaccionId = await revertir(tx, objetivo.map((t) => t.id), d.motivo, ctx);
+  await tx.insert(anulaciones).values({ entidad: "prestamos", entidadId: d.id, transaccionId, motivo: d.motivo, creadoPor: ctx.usuarioId });
+  await tx.update(prestamos).set({ estado: "anulado", fechaCierre: ctx.hoy }).where(eq(prestamos.id, d.id));
+  return { clienteId: p.clienteId, numero: p.numero };
+}
+
 export function anular(tx: Tx, entidad: EntidadAnulable, d: { id: string; motivo: string }, ctx: ContextoAnulacion) {
   const fn = { pagos: anularPago, conversiones: anularConversion, aportes: anularAporte, cargos: anularCargo }[entidad];
   return fn(tx, d, ctx);
@@ -317,7 +353,7 @@ export function anular(tx: Tx, entidad: EntidadAnulable, d: { id: string; motivo
 export interface AnulacionHistorial {
   id: string;
   en: Date;
-  entidad: EntidadAnulable;
+  entidad: EntidadAnulable | "prestamos";
   descripcion: string;
   motivo: string;
   usuario: string;
@@ -345,7 +381,7 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
   const vacio = <T>(xs: string[], q: () => Promise<T[]>) => (xs.length ? q() : Promise.resolve([] as T[]));
   const cuotaDe = aliasedTable(cuotas, "cuota_cargo");
 
-  const [filasPagos, filasConv, filasTx, filasCargos] = await Promise.all([
+  const [filasPagos, filasConv, filasTx, filasCargos, filasPrestamos] = await Promise.all([
     vacio(ids("pagos"), () =>
       l
         .select({ id: pagos.id, fecha: pagos.fecha, ars: pagos.ars, tipo: pagos.tipo, clienteId: clientes.id, cliente: clientes.nombre })
@@ -381,6 +417,13 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
         .leftJoin(cuotaDe, eq(cuotaDe.id, cargos.cuotaId))
         .where(inArray(cargos.id, ids("cargos"))),
     ),
+    vacio(ids("prestamos"), () =>
+      l
+        .select({ id: prestamos.id, numero: prestamos.numero, arsCapital: prestamos.arsCapital, cliente: clientes.nombre })
+        .from(prestamos)
+        .innerJoin(clientes, eq(clientes.id, prestamos.clienteId))
+        .where(inArray(prestamos.id, ids("prestamos"))),
+    ),
   ]);
 
   return filas.map((f): AnulacionHistorial => {
@@ -410,6 +453,15 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
         entidad: "cargos",
         descripcion: `${TIPOS_CARGO[c.tipo]} de $${formatearArs(new Decimal(c.ars).abs())} en ${numeroPrestamo(c.numero)}${c.cuota !== null ? ` · cuota ${c.cuota}` : ""} — ${c.motivo}`,
         enlace: `/prestamos/${c.prestamoId}`,
+      };
+    }
+    if (f.entidad === "prestamos") {
+      const p = filasPrestamos.find((x) => x.id === f.entidadId)!;
+      return {
+        ...base,
+        entidad: "prestamos",
+        descripcion: `Préstamo ${numeroPrestamo(p.numero)} de $${formatearArs(p.arsCapital)} a ${p.cliente} (corregido)`,
+        enlace: `/prestamos/${p.id}`,
       };
     }
     const t = filasTx.find((x) => x.id === f.entidadId)!;

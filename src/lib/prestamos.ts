@@ -31,3 +31,10 @@ export type DatosPrestamoForm = z.output<typeof esquemaPrestamo>;
 
 /** "#PR-1082" */
 export const numeroPrestamo = (n: number) => `#PR-${String(n).padStart(4, "0")}`;
+
+/** Motivo obligatorio al corregir un préstamo (queda en la anulación del original). */
+export const esquemaMotivoCorreccion = z
+  .string()
+  .trim()
+  .min(3, "Indicá qué se corrige (mínimo 3 caracteres).")
+  .max(200, "Máximo 200 caracteres.");

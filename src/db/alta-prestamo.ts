@@ -35,7 +35,7 @@ export interface AltaPrestamo {
 export async function insertarPrestamo(
   tx: Tx,
   d: AltaPrestamo,
-  ctx: { usuarioId: string; sociedadId: string },
+  ctx: { usuarioId: string; sociedadId: string; corrigeAId?: string },
 ): Promise<{ id: string; numero: number }> {
   const plan = calcularPlan(d);
 
@@ -56,6 +56,7 @@ export async function insertarPrestamo(
       usdtPrestado: plan.usdtPrestado.toFixed(DECIMALES.usdt),
       arsInteresPactado: plan.arsInteresPactado.toFixed(DECIMALES.ars),
       notas: d.notas,
+      corrigeAId: ctx.corrigeAId,
       creadoPor: ctx.usuarioId,
     })
     .returning({ id: prestamos.id, numero: prestamos.numero });

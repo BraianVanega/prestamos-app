@@ -57,6 +57,7 @@ export const estadoPrestamo = pgEnum("estado_prestamo", [
   "cancelado", // cerrado con o sin pérdida
   "castigado", // incobrable
   "refinanciado", // reemplazado por otro préstamo
+  "anulado", // cargado con error: revertido y reemplazado por su corrección
 ]);
 export const tipoPago = pgEnum("tipo_pago", ["transferencia", "efectivo"]);
 export const conceptoImputacion = pgEnum("concepto_imputacion", [
@@ -189,10 +190,13 @@ export const prestamos = pgTable(
     notas: text("notas"),
 
     refinanciadoDesdeId: uuid("refinanciado_desde_id"),
+    corrigeAId: uuid("corrige_a_id"), // préstamo anulado que este corrige (se fija al alta)
     ...alta(),
   },
   (t) => [
     foreignKey({ columns: [t.refinanciadoDesdeId], foreignColumns: [t.id] }),
+    foreignKey({ columns: [t.corrigeAId], foreignColumns: [t.id] }),
+    unique("prestamos_corrige_a_unico").on(t.corrigeAId),
     index("prestamos_cliente_idx").on(t.clienteId),
     index("prestamos_estado_idx").on(t.estado),
     check("ars_capital_pos", sql`${t.arsCapital} > 0`),

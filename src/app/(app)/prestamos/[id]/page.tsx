@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { ArrowLeft, CalendarDays, History, ReceiptText, SlidersHorizontal, Wallet } from "lucide-react";
+import { ArrowLeft, Ban, CalendarDays, History, PencilLine, ReceiptText, SlidersHorizontal, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,6 +24,7 @@ const ESTADOS_PRESTAMO = {
   cancelado: { etiqueta: "Cancelado", clase: "border-outline-variant bg-surface-container text-on-surface-variant" },
   castigado: { etiqueta: "Castigado", clase: "border-riesgo-rojo-borde bg-riesgo-rojo-bg text-riesgo-rojo-fg" },
   refinanciado: { etiqueta: "Refinanciado", clase: "border-outline-variant bg-surface-container text-on-surface-variant" },
+  anulado: { etiqueta: "Anulado", clase: "border-riesgo-rojo-borde bg-riesgo-rojo-bg text-riesgo-rojo-fg" },
 } as const;
 
 const TIPOS_EVENTO: Record<EventoFicha["tipo"], string> = {
@@ -74,6 +75,7 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
   const pctRecuperado = pctDe(f.recuperadoUsdt, usdtPrestado);
   const restantes = plan.cuotas.length - plan.cuotasPagadas;
   const vigente = p.estado === "vigente";
+  const anulado = p.estado === "anulado";
 
   return (
     <section className="flex flex-col gap-margin">
@@ -101,12 +103,50 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
         )}
         {vigente && plan.diasAtraso === 0 && plan.proxima && <BadgeRiesgo nivel="verde">Al día</BadgeRiesgo>}
         {vigente && (
-          <Link href={`/pagos/nuevo?cliente=${cliente.id}`} className={cn(buttonVariants(), "ml-auto gap-space-sm")}>
-            <Wallet aria-hidden />
-            Registrar cobro
-          </Link>
+          <div className="ml-auto flex flex-wrap gap-space-sm">
+            <Link href={`/prestamos/${p.id}/editar`} className={cn(buttonVariants({ variant: "outline" }), "gap-space-sm")}>
+              <PencilLine aria-hidden />
+              Editar
+            </Link>
+            <Link href={`/pagos/nuevo?cliente=${cliente.id}`} className={cn(buttonVariants(), "gap-space-sm")}>
+              <Wallet aria-hidden />
+              Registrar cobro
+            </Link>
+          </div>
         )}
       </div>
+
+      {f.anulacion && (
+        <div role="note" className="flex flex-wrap items-start gap-space-sm rounded-lg border border-riesgo-rojo-borde bg-riesgo-rojo-bg px-space-md py-space-sm text-body-md text-riesgo-rojo-fg">
+          <Ban className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p className="min-w-0 flex-1">
+            Anulado por corrección de carga el <span className="font-mono tabular-nums">{formatearFechaHora(f.anulacion.en)}</span> por{" "}
+            {f.anulacion.usuario}: {f.anulacion.motivo}. Su desembolso se revirtió y no cuenta en caja ni en cartera.
+            {f.anulacion.reemplazo && (
+              <>
+                {" "}
+                Lo reemplaza{" "}
+                <Link href={`/prestamos/${f.anulacion.reemplazo.id}`} className="font-mono font-semibold tabular-nums underline">
+                  {numeroPrestamo(f.anulacion.reemplazo.numero)}
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        </div>
+      )}
+      {f.corrigeA && (
+        <p className="flex items-center gap-space-sm text-body-md text-on-surface-variant">
+          <PencilLine className="size-4 shrink-0" aria-hidden />
+          <span>
+            Corrige a{" "}
+            <Link href={`/prestamos/${f.corrigeA.id}`} className="font-mono text-primary tabular-nums hover:underline">
+              {numeroPrestamo(f.corrigeA.numero)}
+            </Link>
+            , anulado por error de carga.
+          </span>
+        </p>
+      )}
 
       <div className="grid gap-gutter-compact md:grid-cols-2 2xl:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))]">
         <TarjetaCliente f={f} />
@@ -151,29 +191,41 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
 
         <Panel className="flex flex-col gap-space-sm p-space-md">
           <Etiqueta>Saldo exigible</Etiqueta>
-          <span className="font-mono tabular-nums">
-            <span className="text-headline-lg">${formatearArs(f.saldo.total)}</span>{" "}
-            <span className="text-data-currency-secondary text-on-surface-variant">ARS</span>
-          </span>
-          <dl className="grid grid-cols-[1fr_auto] gap-x-space-sm font-mono text-data-cell text-on-surface-variant tabular-nums">
-            <dt>Cuotas</dt>
-            <dd className="text-right">${formatearArs(f.saldo.plan)}</dd>
-            {!f.saldo.cargos.isZero() && (
-              <>
-                <dt>Cargos</dt>
-                <dd className="text-right">${formatearArs(f.saldo.cargos)}</dd>
-              </>
-            )}
-            {f.saldo.moraACargar.gt(0) && (
-              <>
-                <dt>Mora</dt>
-                <dd className="text-right text-error">${formatearArs(f.saldo.moraACargar)}</dd>
-              </>
-            )}
-          </dl>
-          <Etiqueta className={cn("mt-auto", restantes > 0 && plan.diasAtraso > 0 && "text-error")}>
-            {restantes === 0 ? "Plan cancelado" : restantes === 1 ? "1 cuota restante" : `${restantes} cuotas restantes`}
-          </Etiqueta>
+          {anulado ? (
+            <>
+              <span className="font-mono tabular-nums">
+                <span className="text-headline-lg">$0,00</span>{" "}
+                <span className="text-data-currency-secondary text-on-surface-variant">ARS</span>
+              </span>
+              <Etiqueta className="mt-auto">Préstamo anulado: no hay deuda</Etiqueta>
+            </>
+          ) : (
+            <>
+              <span className="font-mono tabular-nums">
+                <span className="text-headline-lg">${formatearArs(f.saldo.total)}</span>{" "}
+                <span className="text-data-currency-secondary text-on-surface-variant">ARS</span>
+              </span>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-space-sm font-mono text-data-cell text-on-surface-variant tabular-nums">
+                <dt>Cuotas</dt>
+                <dd className="text-right">${formatearArs(f.saldo.plan)}</dd>
+                {!f.saldo.cargos.isZero() && (
+                  <>
+                    <dt>Cargos</dt>
+                    <dd className="text-right">${formatearArs(f.saldo.cargos)}</dd>
+                  </>
+                )}
+                {f.saldo.moraACargar.gt(0) && (
+                  <>
+                    <dt>Mora</dt>
+                    <dd className="text-right text-error">${formatearArs(f.saldo.moraACargar)}</dd>
+                  </>
+                )}
+              </dl>
+              <Etiqueta className={cn("mt-auto", restantes > 0 && plan.diasAtraso > 0 && "text-error")}>
+                {restantes === 0 ? "Plan cancelado" : restantes === 1 ? "1 cuota restante" : `${restantes} cuotas restantes`}
+              </Etiqueta>
+            </>
+          )}
         </Panel>
       </div>
 
@@ -288,7 +340,7 @@ function Cronograma({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapita
               <td className={cn(td, "text-right")}>{formatearArs(arsCapital)}</td>
               <td className={cn(td, "text-right text-tertiary")}>{formatearArs(arsInteres)}</td>
               <td className={cn(td, "text-right font-semibold")}>{formatearArs(arsCapital.plus(arsInteres))}</td>
-              <td className={cn(td, "text-right font-semibold")}>{formatearArs(plan.saldoArs)}</td>
+              <td className={cn(td, "text-right font-semibold")}>{p.estado === "anulado" ? "—" : formatearArs(plan.saldoArs)}</td>
               <td className={td} colSpan={3}>
                 <span className="font-sans text-body-sm text-on-surface-variant">
                   {plan.cuotasPagadas}/{plan.cuotas.length} pagadas
@@ -315,6 +367,7 @@ function FilaCuota({
 }) {
   const original = f.cuotasOriginales.get(c.id)!;
   const pago = f.ultimoPagoPorCuota.get(c.id);
+  const anulado = f.prestamo.estado === "anulado";
   return (
     <tr className={cn("border-b border-outline-variant/60 last:border-b-0", esProxima && "bg-primary/4")}>
       <td className={cn(td, esProxima ? "font-semibold text-primary" : "text-on-surface")}>{cuotaN(c.numero)}</td>
@@ -322,11 +375,17 @@ function FilaCuota({
       <td className={cn(td, "text-right")}>{formatearArs(original.capital)}</td>
       <td className={cn(td, "text-right text-tertiary")}>{formatearArs(original.interes)}</td>
       <td className={cn(td, "text-right font-semibold")}>{formatearArs(original.capital.plus(original.interes))}</td>
-      <td className={cn(td, "text-right", c.pagada ? "text-on-surface-variant" : "text-on-surface")}>
-        {c.pagada ? "—" : formatearArs(c.saldo)}
+      <td className={cn(td, "text-right", c.pagada || anulado ? "text-on-surface-variant" : "text-on-surface")}>
+        {c.pagada || anulado ? "—" : formatearArs(c.saldo)}
       </td>
       <td className={td}>
-        <SituacionCuota c={c} diasPlazo={f.diasPlazo} />
+        {anulado ? (
+          <span className="inline-flex items-center rounded-full border border-outline-variant bg-surface-container-low px-space-sm py-space-2xs font-mono text-badge-label whitespace-nowrap text-on-surface-variant uppercase">
+            Anulada
+          </span>
+        ) : (
+          <SituacionCuota c={c} diasPlazo={f.diasPlazo} />
+        )}
       </td>
       <td className={td}>{pago ? formatearFecha(pago.fecha) : "—"}</td>
       <td className={cn(td, "text-right text-on-surface-variant")}>
@@ -489,7 +548,7 @@ function Historial({ eventos }: { eventos: EventoFicha[] }) {
               {e.descripcion && <span className="text-body-md text-on-surface-variant">{e.descripcion}</span>}
               {!e.usdt.isZero() && (
                 <span className="font-mono text-data-cell text-on-surface tabular-nums">
-                  {e.usdt.gt(0) ? "Cartera +" : "Recuperado "}
+                  {e.usdt.gt(0) ? "Cartera +" : e.tipo === "anulacion" ? "Cartera −" : "Recuperado "}
                   {formatearUsdt(e.usdt.abs())} USDT
                 </span>
               )}

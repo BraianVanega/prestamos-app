@@ -34,3 +34,6 @@ export const formatearArs = (v: Decimal.Value) => formatearNumero(v, 2);
 export const formatearUsdt = (v: Decimal.Value) => formatearNumero(v, 2);
 export const formatearTc = (v: Decimal.Value) => formatearNumero(v, 2);
 export const formatearPct = (v: Decimal.Value) => formatearNumero(v, 2);
+
+/** Decimal → texto editable es-AR sin separador de miles ni ceros de más ("9,3333", "36"). */
+export const textoEditable = (v: Decimal.Value) => new Decimal(v).toFixed().replace(".", ",");

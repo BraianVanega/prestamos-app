@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hoyArgentina } from "./hoy";
-import { esquemaPrestamo, numeroPrestamo } from "./prestamos";
+import { esquemaMotivoCorreccion, esquemaPrestamo, numeroPrestamo } from "./prestamos";
 
 const base = {
   clienteId: "434c0458-247d-4466-bc19-c15202a09fa1",
@@ -56,5 +56,16 @@ describe("numeroPrestamo / hoyArgentina", () => {
   it("usa la hora de Buenos Aires (UTC−3)", () => {
     expect(hoyArgentina(new Date("2026-10-08T02:30:00Z"))).toBe("2026-10-07");
     expect(hoyArgentina(new Date("2026-10-08T03:30:00Z"))).toBe("2026-10-08");
+  });
+});
+
+describe("esquemaMotivoCorreccion", () => {
+  it("exige un motivo de al menos 3 caracteres, sin contar espacios", () => {
+    expect(esquemaMotivoCorreccion.safeParse("  ab ").success).toBe(false);
+    expect(esquemaMotivoCorreccion.parse("  TC mal cargado ")).toBe("TC mal cargado");
+  });
+
+  it("corta en 200 caracteres", () => {
+    expect(esquemaMotivoCorreccion.safeParse("x".repeat(201)).success).toBe(false);
   });
 });

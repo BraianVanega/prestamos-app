@@ -172,11 +172,15 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
       arsCapital: new Decimal(f.arsCapital),
       tcEntrada: new Decimal(f.tcEntrada),
       usdtPrestado: new Decimal(f.usdtPrestado),
-      recuperadoUsdt: recuperadoUsdt({
-        usdtPrestado: f.usdtPrestado,
-        saldoCartera: suma("cartera"),
-        gananciaAsientos: suma("ganancia"),
-      }),
+      // Un anulado no recuperó nada: su cartera quedó en cero por la reversa del desembolso.
+      recuperadoUsdt:
+        f.estado === "anulado"
+          ? new Decimal(0)
+          : recuperadoUsdt({
+              usdtPrestado: f.usdtPrestado,
+              saldoCartera: suma("cartera"),
+              gananciaAsientos: suma("ganancia"),
+            }),
       carteraUsdt: new Decimal(suma("cartera")),
       plan,
       riesgo: f.estado === "vigente" ? nivelRiesgo(plan.diasAtraso, diasEntre(f.fechaDesembolso, f.vencimientoFinal)) : "verde",

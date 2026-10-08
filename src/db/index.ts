@@ -6,8 +6,10 @@ const url = process.env.DATABASE_URL;
 if (!url) throw new Error("Falta DATABASE_URL");
 
 // Reusa la conexión entre recargas de `next dev`.
+// `prepare: false`: en producción se conecta por el pooler de Supabase en modo
+// transacción (puerto 6543), que no soporta prepared statements.
 const globalForDb = globalThis as unknown as { pg?: postgres.Sql };
-const client = globalForDb.pg ?? postgres(url);
+const client = globalForDb.pg ?? postgres(url, { prepare: false });
 if (process.env.NODE_ENV !== "production") globalForDb.pg = client;
 
 export const db = drizzle(client, { schema });

@@ -11,7 +11,7 @@ import { participantes, usuarios } from "./schema";
 
 const SOCIOS = [
   { nombre: "Socio 1", pctSociedad: "50", email: "kevinvanegaa@gmail.com", envPassword: "SEED_PASSWORD_SOCIO_1" },
-  { nombre: "Socio 2", pctSociedad: "50", email: "kevinisaias99@yahoo.com", envPassword: "SEED_PASSWORD_SOCIO_2" },
+  { nombre: "Socio 2", pctSociedad: "50", email: "2017kevinojeda@gmail.com", envPassword: "SEED_PASSWORD_SOCIO_2" },
 ];
 
 const nombreDesdeEmail = (email: string) => email.split("@")[0]!;

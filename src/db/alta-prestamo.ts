@@ -1,14 +1,16 @@
 import type Decimal from "decimal.js";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Tx } from "./index";
 import {
   asientos,
   cuotas,
+  participantes,
   prestamoParticipaciones,
   prestamos,
   transacciones,
 } from "./schema";
 import { calcularPlan } from "@/engine/cronograma";
-import { asientosDesembolso, participacionSociedad } from "@/engine/desembolso";
+import { asientosAporteTerceros, asientosDesembolso, participacionesPrestamo } from "@/engine/desembolso";
 import type { Fecha, Frecuencia } from "@/engine/fechas";
 import { DECIMALES } from "@/engine/redondeo";
 import { numeroPrestamo } from "@/lib/prestamos";
@@ -25,11 +27,16 @@ export interface AltaPrestamo {
   moraPct: Decimal;
   diasGracia: number;
   notas: string | null;
+  /** Terceros que ponen plata (su % de capital y de ganancia); el resto es de la Sociedad. */
+  terceros?: { participanteId: string; pct: Decimal }[];
 }
+
+export class ErrorAltaPrestamo extends Error {}
 
 /**
  * Alta completa de un préstamo dentro de la transacción recibida: préstamo,
- * participación (Sociedad 100/100), cuotas y desembolso (cartera +, caja −).
+ * participación (Sociedad y terceros), cuotas y desembolso (cartera +, caja −;
+ * la parte de cada tercero entra a la caja contra su capital).
  * Los triggers diferidos validan participaciones al 100% y asientos balanceados al COMMIT.
  */
 export async function insertarPrestamo(
@@ -38,6 +45,16 @@ export async function insertarPrestamo(
   ctx: { usuarioId: string; sociedadId: string; corrigeAId?: string },
 ): Promise<{ id: string; numero: number }> {
   const plan = calcularPlan(d);
+  const terceros = d.terceros ?? [];
+  if (terceros.length) {
+    const ids = terceros.map((t) => t.participanteId);
+    const validos = await tx
+      .select({ id: participantes.id })
+      .from(participantes)
+      .where(and(inArray(participantes.id, ids), eq(participantes.tipo, "fondeador")));
+    if (validos.length !== new Set(ids).size) throw new ErrorAltaPrestamo("Alguno de los terceros no existe.");
+  }
+  const participaciones = participacionesPrestamo(ctx.sociedadId, terceros);
 
   const [prestamo] = await tx
     .insert(prestamos)
@@ -63,7 +80,7 @@ export async function insertarPrestamo(
   const { id, numero } = prestamo!;
 
   await tx.insert(prestamoParticipaciones).values(
-    participacionSociedad(ctx.sociedadId).map((p) => ({
+    participaciones.map((p) => ({
       prestamoId: id,
       participanteId: p.participanteId,
       pctCapital: p.pctCapital.toFixed(DECIMALES.pct),
@@ -93,7 +110,10 @@ export async function insertarPrestamo(
     .returning({ id: transacciones.id });
 
   await tx.insert(asientos).values(
-    asientosDesembolso(id, plan.usdtPrestado).map((a) => ({
+    [
+      ...asientosDesembolso(id, plan.usdtPrestado),
+      ...asientosAporteTerceros(id, plan.usdtPrestado, participaciones, ctx.sociedadId),
+    ].map((a) => ({
       transaccionId: transaccion!.id,
       cuenta: a.cuenta,
       moneda: a.moneda,

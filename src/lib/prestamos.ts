@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import { z } from "zod";
 import type { Frecuencia } from "@/engine/fechas";
 import { decimal, entero, fecha } from "./validacion";
@@ -38,3 +39,23 @@ export const esquemaMotivoCorreccion = z
   .trim()
   .min(3, "Indicá qué se corrige (mínimo 3 caracteres).")
   .max(200, "Máximo 200 caracteres.");
+
+/**
+ * Terceros que ponen plata en el préstamo (filas del formulario). Cada uno una
+ * vez, con % > 0; entre todos no pasan el 100% (el resto es de la Sociedad).
+ */
+export const esquemaTercerosPrestamo = z
+  .array(
+    z.object({
+      participanteId: z.uuid("Elegí el tercero."),
+      pct: decimal({ campo: "el % del tercero", decimales: 4, maxEnteros: 3, min: "pos" }),
+    }),
+  )
+  .superRefine((filas, ctx) => {
+    const ids = filas.map((f) => f.participanteId);
+    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: "custom", message: "Cada tercero va una sola vez." });
+    const suma = filas.reduce((s, f) => s.plus(f.pct), new Decimal(0));
+    if (suma.gt(100)) ctx.addIssue({ code: "custom", message: "Los terceros suman más del 100%." });
+  });
+
+export type TerceroPrestamo = z.output<typeof esquemaTercerosPrestamo>[number];

@@ -1,9 +1,9 @@
 "use client";
 
 import type Decimal from "decimal.js";
-import { ArrowLeft, CalendarRange, CircleDollarSign, Lock, PencilLine, SlidersHorizontal, UserPlus, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarRange, CircleDollarSign, Handshake, Lock, PencilLine, Plus, SlidersHorizontal, Trash2, UserPlus, UserRound } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useMemo, useRef, useState } from "react";
+import { Fragment, useActionState, useMemo, useRef, useState } from "react";
 import type { EstadoFormPrestamo } from "@/app/(app)/prestamos/actions";
 import {
   AlertDialog,
@@ -30,6 +30,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { calcularPlan, proyectarUsdt, tasaTotalSugerida } from "@/engine/cronograma";
+import { participacionesPrestamo } from "@/engine/desembolso";
+import { DECIMALES } from "@/engine/redondeo";
+import { repartir } from "@/engine/reparto";
 import type { Fecha, Frecuencia } from "@/engine/fechas";
 import { formatearFecha } from "@/lib/formato";
 import { formatearArs, formatearPct, formatearTc, formatearUsdt, parsearDecimal, textoEditable } from "@/lib/numeros";
@@ -43,6 +46,20 @@ export interface OpcionCliente {
 }
 
 type Accion = (prev: EstadoFormPrestamo, form: FormData) => Promise<EstadoFormPrestamo>;
+
+/** Tercero que se puede sumar al préstamo. */
+export interface OpcionTercero {
+  value: string;
+  label: string;
+  /** % sugerido, texto editable es-AR ("" si no tiene). */
+  pctDefault: string;
+}
+
+/** Fila de un tercero en la estructura de capital (texto editable). */
+export interface FilaTercero {
+  participanteId: string;
+  pct: string;
+}
 
 /** Valores del formulario como texto editable (es-AR). */
 export interface ValoresPrestamo {
@@ -94,6 +111,9 @@ export function FormPrestamo({
   graciaSugerida,
   inicial,
   correccion,
+  terceros,
+  tercerosIniciales,
+  socios,
 }: {
   accion: Accion;
   clientes: OpcionCliente[];
@@ -103,6 +123,10 @@ export function FormPrestamo({
   graciaSugerida: number;
   inicial?: ValoresPrestamo;
   correccion?: Correccion;
+  terceros: OpcionTercero[];
+  tercerosIniciales?: FilaTercero[];
+  /** Socios con su % de la Sociedad (texto editable), para mostrar cómo se abre la parte de la Sociedad. */
+  socios: { nombre: string; pct: string }[];
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, {});
   const formRef = useRef<HTMLFormElement>(null);
@@ -125,6 +149,7 @@ export function FormPrestamo({
       },
   );
   const [motivo, setMotivo] = useState("");
+  const [filas, setFilas] = useState<FilaTercero[]>(tercerosIniciales ?? []);
   // Al corregir, la tasa pactada se respeta si no coincide con la sugerida.
   const [tasaTotalEditada, setTasaTotalEditada] = useState(() => {
     if (!inicial) return false;
@@ -135,11 +160,15 @@ export function FormPrestamo({
   });
 
   // Los errores del servidor se ocultan campo por campo a medida que se corrigen.
-  const [corregidos, setCorregidos] = useState({ de: estado, campos: new Set<CamposPrestamo | "motivo">() });
+  const [corregidos, setCorregidos] = useState({ de: estado, campos: new Set<CamposPrestamo | "motivo" | "terceros">() });
   if (corregidos.de !== estado) setCorregidos({ de: estado, campos: new Set() });
-  const corregir = (c: CamposPrestamo | "motivo") =>
+  const corregir = (c: CamposPrestamo | "motivo" | "terceros") =>
     setCorregidos((prev) => (prev.campos.has(c) ? prev : { de: prev.de, campos: new Set(prev.campos).add(c) }));
-  const err = (c: CamposPrestamo | "motivo") => (corregidos.campos.has(c) ? undefined : estado.errores?.[c]);
+  const err = (c: CamposPrestamo | "motivo" | "terceros") => (corregidos.campos.has(c) ? undefined : estado.errores?.[c]);
+  const cambiarFilas = (f: (prev: FilaTercero[]) => FilaTercero[]) => {
+    setFilas(f);
+    corregir("terceros");
+  };
 
   const set = (campo: keyof typeof v) => (valor: string) => {
     setV((prev) => ({ ...prev, [campo]: valor }));
@@ -178,6 +207,28 @@ export function FormPrestamo({
     }
   }, [v.arsCapital, v.tcEntrada, v.tasaMensualPct, tasaTotalTexto, v.nCuotas, v.fechaDesembolso, v.frecuencia]);
 
+  // Reparto del préstamo: Sociedad (abierta por socio) y cada tercero, con el USDT que pone cada uno.
+  const estructura = useMemo(() => {
+    try {
+      const partes = participacionesPrestamo(
+        "sociedad",
+        filas.map((f) => {
+          const pct = parsearDecimal(f.pct);
+          if (!f.participanteId || !pct) throw new Error("incompleta");
+          return { participanteId: f.participanteId, pct };
+        }),
+      );
+      const usdt = calculo
+        ? repartir(calculo.plan.usdtPrestado, [...partes.filter((p) => p.participanteId !== "sociedad"), ...partes.filter((p) => p.participanteId === "sociedad")].map((p) => ({ id: p.participanteId, pct: p.pctCapital })), DECIMALES.usdt)
+        : null;
+      return partes.map((p) => ({ ...p, usdt: usdt?.find((u) => u.id === p.participanteId)?.monto ?? null }));
+    } catch {
+      return null;
+    }
+  }, [filas, calculo]);
+  const parteSociedad = estructura?.find((p) => p.participanteId === "sociedad");
+  const nombreTercero = (id: string) => terceros.find((t) => t.value === id)?.label ?? "Tercero";
+
   const pedirConfirmacion = () => {
     if (calculo && cliente && (!correccion || motivo.trim().length >= 3)) setConfirmando(true);
     else formRef.current?.requestSubmit();
@@ -187,6 +238,12 @@ export function FormPrestamo({
     <form ref={formRef} action={enviar} noValidate className="flex flex-col gap-margin">
       <input type="hidden" name="clienteId" value={cliente?.value ?? ""} />
       <input type="hidden" name="tasaTotalPct" value={tasaTotalTexto} />
+      {filas.map((f, i) => (
+        <span key={i} hidden>
+          <input type="hidden" name="terceroId" value={f.participanteId} />
+          <input type="hidden" name="terceroPct" value={f.pct} />
+        </span>
+      ))}
 
       <div className="flex flex-wrap items-center gap-margin">
         <Link
@@ -346,6 +403,16 @@ export function FormPrestamo({
             </div>
           </Panel>
 
+          <EstructuraCapital
+            filas={filas}
+            cambiar={cambiarFilas}
+            terceros={terceros}
+            socios={socios}
+            estructura={estructura}
+            nombreTercero={nombreTercero}
+            error={err("terceros")}
+          />
+
           <Panel icono={<SlidersHorizontal aria-hidden />} titulo="Parámetros financieros y plazos">
             <div className="grid grid-cols-1 gap-margin md:grid-cols-3">
               <Campo id="tasaMensualPct" etiqueta="Tasa mensual (%)" error={err("tasaMensualPct")}>
@@ -440,7 +507,19 @@ export function FormPrestamo({
                   <dt className="text-on-surface-variant">Capital</dt>
                   <dd className="font-mono text-on-surface tabular-nums">${formatearArs(calculo.plan.arsTotal.minus(calculo.plan.arsInteresPactado))}</dd>
                   <dt className="text-on-surface-variant">Sale de caja</dt>
-                  <dd className="font-mono text-on-surface tabular-nums">{formatearUsdt(calculo.plan.usdtPrestado)} USDT</dd>
+                  <dd className="font-mono text-on-surface tabular-nums">
+                    {formatearUsdt(parteSociedad?.usdt ?? (estructura ? 0 : calculo.plan.usdtPrestado))} USDT
+                  </dd>
+                  {estructura
+                    ?.filter((p) => p.participanteId !== "sociedad")
+                    .map((p) => (
+                      <Fragment key={p.participanteId}>
+                        <dt className="text-on-surface-variant">Pone {nombreTercero(p.participanteId)}</dt>
+                        <dd className="font-mono text-on-surface tabular-nums">
+                          {p.usdt ? formatearUsdt(p.usdt) : "—"} USDT ({formatearPct(p.pctCapital)}%)
+                        </dd>
+                      </Fragment>
+                    ))}
                   <dt className="text-on-surface-variant">Cuotas</dt>
                   <dd className="font-mono text-on-surface tabular-nums">
                     {calculo.plan.cuotas.length} {FRECUENCIAS[v.frecuencia].plural} · vence {formatearFecha(calculo.plan.vencimientoFinal)}
@@ -470,6 +549,153 @@ export function FormPrestamo({
         </AlertDialogContent>
       </AlertDialog>
     </form>
+  );
+}
+
+function EstructuraCapital({
+  filas,
+  cambiar,
+  terceros,
+  socios,
+  estructura,
+  nombreTercero,
+  error,
+}: {
+  filas: FilaTercero[];
+  cambiar: (f: (prev: FilaTercero[]) => FilaTercero[]) => void;
+  terceros: OpcionTercero[];
+  socios: { nombre: string; pct: string }[];
+  estructura: { participanteId: string; pctCapital: Decimal; usdt: Decimal | null }[] | null;
+  nombreTercero: (id: string) => string;
+  error?: string;
+}) {
+  const libres = terceros.filter((t) => !filas.some((f) => f.participanteId === t.value));
+  const agregar = () => {
+    const t = libres[0];
+    if (t) cambiar((prev) => [...prev, { participanteId: t.value, pct: t.pctDefault }]);
+  };
+  const sociedad = estructura?.find((p) => p.participanteId === "sociedad");
+
+  return (
+    <Panel
+      icono={<Handshake aria-hidden />}
+      titulo="Estructura de capital"
+      accion={
+        terceros.length > 0 && (
+          <Button type="button" variant="ghost" size="sm" className="gap-space-xs" onClick={agregar} disabled={libres.length === 0}>
+            <Plus aria-hidden />
+            Agregar tercero
+          </Button>
+        )
+      }
+    >
+      {filas.length === 0 ? (
+        <p className="text-body-md text-on-surface-variant">
+          100% de la Sociedad ({socios.map((s) => `${s.nombre} ${s.pct}%`).join(" / ")}).{" "}
+          {terceros.length === 0 ? (
+            <>
+              Para sumar a alguien que pone plata, dalo de alta en{" "}
+              <Link href="/terceros" className="text-primary hover:underline">
+                Terceros
+              </Link>
+              .
+            </>
+          ) : (
+            "Si un tercero pone plata, sumalo con su %."
+          )}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-space-sm">
+          {filas.map((f, i) => {
+            const items = terceros
+              .filter((t) => t.value === f.participanteId || !filas.some((g) => g.participanteId === t.value))
+              .map((t) => ({ value: t.value, label: t.label }));
+            return (
+              <div key={i} className="flex items-end gap-space-sm">
+                <div className="flex min-w-0 flex-1 flex-col gap-space-xs">
+                  <Label htmlFor={`tercero-${i}`}>Tercero</Label>
+                  <Select
+                    items={items}
+                    value={f.participanteId}
+                    onValueChange={(id) => {
+                      if (!id) return;
+                      const sugerido = terceros.find((t) => t.value === id)?.pctDefault ?? "";
+                      cambiar((prev) => prev.map((g, j) => (j === i ? { participanteId: id, pct: g.pct || sugerido } : g)));
+                    }}
+                  >
+                    <SelectTrigger id={`tercero-${i}`} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {items.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-32 flex-col gap-space-xs">
+                  <Label htmlFor={`pct-${i}`}>% que pone</Label>
+                  <EntradaNumero
+                    id={`pct-${i}`}
+                    sinNombre
+                    valor={f.pct}
+                    onChange={(pct) => cambiar((prev) => prev.map((g, j) => (j === i ? { ...g, pct } : g)))}
+                    sufijo="%"
+                    error={!!error}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Quitar ${nombreTercero(f.participanteId)}`}
+                  onClick={() => cambiar((prev) => prev.filter((_, j) => j !== i))}
+                >
+                  <Trash2 aria-hidden />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {error && <p className="text-body-sm text-error">{error}</p>}
+      {filas.length > 0 && (
+        <div className="flex flex-col gap-space-xs rounded-lg bg-surface-container-low p-space-md">
+          <span className="text-label-caps text-on-surface-variant uppercase">Reparto de capital y ganancia</span>
+          {!estructura ? (
+            <span className="text-body-md text-on-surface-variant">Completá el % de cada tercero (entre todos, hasta 100%).</span>
+          ) : (
+            <ul className="flex flex-col gap-space-2xs text-body-md">
+              {sociedad &&
+                socios.map((s) => {
+                  const pct = sociedad.pctCapital.times(parsearDecimal(s.pct) ?? 0).div(100);
+                  return (
+                    <li key={s.nombre} className="flex justify-between gap-margin">
+                      <span className="text-on-surface">{s.nombre} (Sociedad)</span>
+                      <span className="font-mono tabular-nums text-on-surface">{formatearPct(pct)}%</span>
+                    </li>
+                  );
+                })}
+              {estructura
+                .filter((p) => p.participanteId !== "sociedad")
+                .map((p) => (
+                  <li key={p.participanteId} className="flex justify-between gap-margin">
+                    <span className="text-on-surface">{nombreTercero(p.participanteId)}</span>
+                    <span className="font-mono tabular-nums text-on-surface">
+                      {formatearPct(p.pctCapital)}%{p.usdt && <span className="text-on-surface-variant"> · pone {formatearUsdt(p.usdt)} USDT</span>}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          )}
+          <span className="text-body-sm text-on-surface-variant">
+            La plata de cada tercero entra a la caja al desembolsar; la caja pone solo la parte de la Sociedad. Cada uno se lleva su % de la ganancia.
+          </span>
+        </div>
+      )}
+    </Panel>
   );
 }
 

@@ -1,7 +1,7 @@
 import "server-only";
 import Decimal from "decimal.js";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
-import { db } from "./index";
+import { db as dbGlobal, type Tx } from "./index";
 import {
   anulaciones,
   asientos,
@@ -35,23 +35,26 @@ export interface ResumenPrestamo {
 }
 
 /** Pagos anulados: sus imputaciones no cuentan. */
-const pagosAnulados = db
+const pagosAnulados = dbGlobal
   .select({ id: anulaciones.entidadId })
   .from(anulaciones)
   .where(eq(anulaciones.entidad, "pagos"));
 
-/** Etiqueta del dueño del capital según las participaciones del préstamo. */
+/**
+ * Etiqueta del dueño del capital según las participaciones del préstamo:
+ * "Sociedad 50/50", o con terceros "Sociedad 80% · Juan 20%".
+ */
 function etiquetaDueno(
-  partes: { tipo: string; nombre: string }[],
+  partes: { tipo: string; nombre: string; pct: string }[],
   socios: { nombre: string; pctSociedad: string | null }[],
 ): string {
-  if (partes.length !== 1) return "Mixto";
-  const [p] = partes;
-  if (p!.tipo === "sociedad") {
+  const pct = (v: Decimal.Value) => `${new Decimal(v).toDecimalPlaces(2).toString().replace(".", ",")}%`;
+  if (partes.length === 1 && partes[0]!.tipo === "sociedad") {
     const pcts = socios.map((s) => new Decimal(s.pctSociedad ?? 0).toDecimalPlaces(0).toString());
     return pcts.length ? `Sociedad ${pcts.join("/")}` : "Sociedad";
   }
-  return p!.nombre;
+  const orden = [...partes].sort((a, b) => Number(b.tipo === "sociedad") - Number(a.tipo === "sociedad"));
+  return orden.map((p) => `${p.tipo === "sociedad" ? "Sociedad" : p.nombre} ${pct(p.pct)}`).join(" · ");
 }
 
 /**
@@ -59,7 +62,9 @@ function etiquetaDueno(
  * (imputaciones de pagos no anulados), atraso, riesgo y USDT recuperado según
  * el libro. Pocas consultas para el conjunto; el cálculo lo hace el motor.
  */
-export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestamo[]> {
+/** `l`: lector (la transacción en curso cuando hace falta ver lo recién escrito). */
+export async function cargarResumenPrestamos(hoy: Fecha, l: typeof dbGlobal | Tx = dbGlobal): Promise<ResumenPrestamo[]> {
+  const db = l;
   const filas = await db
     .select({
       id: prestamos.id,
@@ -113,7 +118,7 @@ export async function cargarResumenPrestamos(hoy: Fecha): Promise<ResumenPrestam
       .where(and(inArray(asientos.prestamoId, ids), inArray(asientos.cuenta, ["cartera", "ganancia"])))
       .groupBy(asientos.prestamoId, asientos.cuenta),
     db
-      .select({ prestamoId: prestamoParticipaciones.prestamoId, tipo: participantes.tipo, nombre: participantes.nombre })
+      .select({ prestamoId: prestamoParticipaciones.prestamoId, tipo: participantes.tipo, nombre: participantes.nombre, pct: prestamoParticipaciones.pctCapital })
       .from(prestamoParticipaciones)
       .innerJoin(participantes, eq(participantes.id, prestamoParticipaciones.participanteId))
       .where(inArray(prestamoParticipaciones.prestamoId, ids)),

@@ -13,6 +13,7 @@ const ENTIDADES: Record<AnulacionHistorial["entidad"], string> = {
   aportes: "Aporte",
   cargos: "Cargo",
   prestamos: "Préstamo",
+  pagosTercero: "Pago a tercero",
 };
 
 const DONDE = [
@@ -20,6 +21,7 @@ const DONDE = [
   ["Mora, descuentos y ajustes", "desde la ficha del préstamo."],
   ["Conversiones", "desde Efectivo, en el historial de conversiones."],
   ["Aportes", "desde Socios, en el historial de aportes."],
+  ["Pagos a terceros", "desde la ficha del tercero, en el historial de pagos."],
   ["Préstamos", "con Editar en la ficha del préstamo: se anula y se da de alta con los cambios; sus cobros se reimputan."],
 ] as const;
 

@@ -114,6 +114,9 @@ export const participantes = pgTable(
     nombre: text("nombre").notNull(),
     tipo: tipoParticipante("tipo").notNull(),
     pctSociedad: pct("pct_sociedad"),
+    /** Fondeador: % que se le sugiere al cargarlo en un préstamo. */
+    pctDefault: pct("pct_default"),
+    notas: text("notas"),
     usuarioId: uuid("usuario_id").references(() => usuarios.id),
     activo: boolean("activo").notNull().default(true),
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),

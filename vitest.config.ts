@@ -1,3 +1,4 @@
+import path from "node:path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
@@ -16,6 +17,8 @@ export default defineConfig({
       {
         // Contra el Supabase local (pnpm db:up && pnpm db:migrate).
         extends: true,
+        // Los módulos de db con `import "server-only"` se usan acá fuera de Next.
+        resolve: { alias: { "server-only": path.resolve("tests/integration/server-only.ts") } },
         test: {
           name: "integration",
           environment: "node",

@@ -8,6 +8,7 @@ import { Alerta } from "@/components/app/campos";
 import { FormPrestamo, type OpcionCliente } from "@/components/app/form-prestamo";
 import { db } from "@/db";
 import { anulaciones, clientes, imputaciones, prestamos } from "@/db/schema";
+import { opcionesEstructura } from "@/db/terceros";
 import type { Fecha } from "@/engine/fechas";
 import { DIAS_GRACIA_SUGERIDOS, MORA_PCT_SUGERIDA } from "@/engine/mora";
 import { formatearDocumento } from "@/lib/formato";
@@ -27,7 +28,7 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
   const volver = `/prestamos/${p.id}`;
 
   const pagosAnulados = db.select({ id: anulaciones.entidadId }).from(anulaciones).where(eq(anulaciones.entidad, "pagos"));
-  const [[cobrado], opciones] = await Promise.all([
+  const [[cobrado], opciones, estructura] = await Promise.all([
     db
       .select({
         pagos: sql<number>`count(distinct ${imputaciones.pagoId})::int`,
@@ -41,6 +42,7 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
       .from(clientes)
       .where(or(eq(clientes.estado, "activo"), eq(clientes.id, p.clienteId)))
       .orderBy(asc(clientes.nombre)),
+    opcionesEstructura(db, id),
   ]);
 
   const bloqueo = p.estado !== "vigente" && p.estado !== "cancelado" ? `${numero} está ${p.estado}: no se puede editar.` : null;
@@ -73,6 +75,9 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
       hoy={hoyArgentina()}
       moraSugerida={MORA_PCT_SUGERIDA}
       graciaSugerida={DIAS_GRACIA_SUGERIDOS}
+      terceros={estructura.terceros}
+      tercerosIniciales={estructura.iniciales}
+      socios={estructura.socios}
       correccion={{
         numero,
         volver,

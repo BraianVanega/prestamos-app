@@ -59,12 +59,13 @@ export interface ResultadoAnulacion {
   cerrados: string[];
 }
 
-/** Tabla que se marca en `anulaciones`; un aporte se marca por su transacción. */
+/** Tabla que se marca en `anulaciones`; un aporte o un pago a un tercero se marca por su transacción. */
 const ENTIDAD_TABLA: Record<EntidadAnulable, string> = {
   pagos: "pagos",
   conversiones: "conversiones",
   aportes: "transacciones",
   cargos: "cargos",
+  pagosTercero: "transacciones",
 };
 
 const TIPOS_TX: Record<string, string> = {
@@ -73,6 +74,7 @@ const TIPOS_TX: Record<string, string> = {
   aplicacion_saldo_favor: "Aplicación de saldo a favor",
   desembolso: "Desembolso",
   aporte: "Aporte",
+  retiro: "Pago a tercero",
 };
 
 const revertida = (id: typeof transacciones.id) =>
@@ -277,6 +279,20 @@ export async function anularAporte(tx: Tx, d: { id: string; motivo: string }, ct
   return { prestamos: [], reabiertos: [], cerrados: [] };
 }
 
+/** Anula un pago a un tercero: la plata vuelve a la caja y a lo que se le debe. */
+export async function anularPagoTercero(tx: Tx, d: { id: string; motivo: string }, ctx: ContextoAnulacion): Promise<ResultadoAnulacion> {
+  const [t] = await tx
+    .select({ id: transacciones.id, tipo: transacciones.tipo })
+    .from(transacciones)
+    .where(eq(transacciones.id, d.id))
+    .for("update");
+  if (!t || t.tipo !== "retiro") throw new ErrorAnulacion("El pago al tercero no existe.");
+  if (await yaAnulada(tx, "pagosTercero", d.id)) throw new ErrorAnulacion("El pago al tercero ya está anulado.");
+  const transaccionId = await revertir(tx, [d.id], d.motivo, ctx);
+  await tx.insert(anulaciones).values({ entidad: "transacciones", entidadId: d.id, transaccionId, motivo: d.motivo, creadoPor: ctx.usuarioId });
+  return { prestamos: [], reabiertos: [], cerrados: [] };
+}
+
 /**
  * Anula un cargo (mora, descuento o ajuste). No mueve el libro: cambia la deuda.
  * Una mora anulada no se vuelve a generar en esa cuota (queda perdonada).
@@ -351,7 +367,7 @@ export async function anularPrestamo(tx: Tx, d: { id: string; motivo: string }, 
 }
 
 export function anular(tx: Tx, entidad: EntidadAnulable, d: { id: string; motivo: string }, ctx: ContextoAnulacion) {
-  const fn = { pagos: anularPago, conversiones: anularConversion, aportes: anularAporte, cargos: anularCargo }[entidad];
+  const fn = { pagos: anularPago, conversiones: anularConversion, aportes: anularAporte, cargos: anularCargo, pagosTercero: anularPagoTercero }[entidad];
   return fn(tx, d, ctx);
 }
 
@@ -404,7 +420,14 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
     ),
     vacio(ids("transacciones"), () =>
       l
-        .select({ id: transacciones.id, fecha: transacciones.fecha, descripcion: transacciones.descripcion })
+        .select({
+          id: transacciones.id,
+          fecha: transacciones.fecha,
+          tipo: transacciones.tipo,
+          descripcion: transacciones.descripcion,
+          // Calificada a mano: sin join, drizzle escribe "id" y en la subconsulta sería el de asientos.
+          terceroId: sql<string | null>`(select a.participante_id from asientos a where a.transaccion_id = "transacciones"."id" and a.participante_id is not null limit 1)`,
+        })
         .from(transacciones)
         .where(inArray(transacciones.id, ids("transacciones"))),
     ),
@@ -472,6 +495,9 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
       };
     }
     const t = filasTx.find((x) => x.id === f.entidadId)!;
+    if (t.tipo === "retiro") {
+      return { ...base, entidad: "pagosTercero", descripcion: `${t.descripcion ?? "Pago a tercero"} (${formatearFecha(t.fecha)})`, enlace: `/terceros/${t.terceroId}` };
+    }
     return { ...base, entidad: "aportes", descripcion: `${t.descripcion ?? "Aporte"} (${formatearFecha(t.fecha)})`, enlace: "/socios" };
   });
 }

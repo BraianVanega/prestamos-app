@@ -36,7 +36,7 @@ const TIPOS_EVENTO: Record<EventoFicha["tipo"], string> = {
   reconocimiento_ganancia: "Ganancia reconocida",
   perdida: "Pérdida",
   aplicacion_saldo_favor: "Saldo a favor aplicado",
-  retiro: "Retiro",
+  retiro: "Pago a tercero",
   anulacion: "Anulación",
 };
 

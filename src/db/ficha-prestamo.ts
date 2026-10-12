@@ -88,7 +88,7 @@ export interface FichaPrestamo {
   saldo: SaldoExigible;
   moraPendiente: (MoraACargar & { cuotaNumero: number })[];
   cargos: CargoFicha[];
-  /** "Sociedad", nombre del titular o "Mixto". */
+  /** "Sociedad", nombre del titular o "Con terceros". */
   estructura: string;
   titulares: TitularFicha[];
   historial: EventoFicha[];
@@ -363,7 +363,7 @@ export async function cargarFichaPrestamo(id: string, hoy: Fecha): Promise<Ficha
     saldo,
     moraPendiente,
     cargos: cargosFicha,
-    estructura: partes.length === 1 ? (partes[0]!.tipo === "sociedad" ? "Sociedad" : partes[0]!.nombre) : "Mixto",
+    estructura: partes.length === 1 ? (partes[0]!.tipo === "sociedad" ? "Sociedad" : partes[0]!.nombre) : "Con terceros",
     titulares,
     historial: txs.map((t) => ({ ...t, usdt: usdtPorTx.get(t.id) ?? new Decimal(0) })),
     corrigeA: corrigeA[0] ?? null,

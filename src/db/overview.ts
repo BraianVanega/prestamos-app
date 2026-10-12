@@ -64,9 +64,9 @@ export async function cargarOverview(hoy: Fecha): Promise<Overview> {
         .where(
           and(
             inArray(asientos.cuenta, ["cartera", "ganancia"]),
-            notInArray(transacciones.tipo, ["desembolso", "apertura"]),
-            // La reversa de un desembolso (préstamo corregido) tampoco es recupero.
-            sql`not exists (select 1 from transacciones original where original.id = ${transacciones.anulaTransaccionId} and original.tipo = 'desembolso')`,
+            // Los pagos a terceros no son recupero; la reversa de un desembolso (préstamo corregido) tampoco.
+            notInArray(transacciones.tipo, ["desembolso", "apertura", "retiro"]),
+            sql`not exists (select 1 from transacciones original where original.id = ${transacciones.anulaTransaccionId} and original.tipo in ('desembolso', 'retiro'))`,
             sql`to_char(${transacciones.fecha}, 'YYYY-MM') = ${mesActual}`,
           ),
         )
@@ -116,6 +116,12 @@ export async function cargarOverview(hoy: Fecha): Promise<Overview> {
   const atraso = rankingAtraso(agenda);
   const prestamos = new Map(resumen.map((p) => [p.id, p]));
   const suma = (cuenta: string) => new Decimal(libroMes.find((x) => x.cuenta === cuenta)?.monto ?? 0);
+  const gananciaMeses = gananciaPorMes(
+    movGanancia.map((m) => ({ ...m, participanteId: m.participanteId! })),
+    meses,
+    socios.map((s) => ({ id: s.id, pct: s.pct ?? "0" })),
+    DECIMALES.usdt,
+  );
 
   // Último TC usado: el más reciente entre cobros por transferencia y conversiones.
   const candidatos = [
@@ -133,18 +139,14 @@ export async function cargarOverview(hoy: Fecha): Promise<Overview> {
       cobradoArs: new Decimal(cobradoMes[0]?.ars ?? 0),
       pagos: cobradoMes[0]?.n ?? 0,
       recuperadoUsdt: suma("cartera").plus(suma("ganancia")).neg(),
-      gananciaUsdt: suma("ganancia").neg(),
+      // La de los socios (sin la parte de los terceros), como la tarjeta.
+      gananciaUsdt: gananciaMeses.at(-1)?.total ?? new Decimal(0),
     },
     efectivo: { ars: cajaEfectivo, masViejo: pendientes[0]?.fecha ?? null },
     vencimientos: vencimientosProximos(agenda, hoy, DIAS_AGENDA),
     atraso,
     exposicionMoraUsdt: atraso.reduce((s, a) => s.plus(prestamos.get(a.id)!.carteraUsdt), new Decimal(0)),
-    ganancia: gananciaPorMes(
-      movGanancia.map((m) => ({ ...m, participanteId: m.participanteId! })),
-      meses,
-      socios.map((s) => ({ id: s.id, pct: s.pct ?? "0" })),
-      DECIMALES.usdt,
-    ),
+    ganancia: gananciaMeses,
     ultimoTc: candidatos[0] ?? null,
     ultimaOperacion: ultimaTx[0] ?? null,
   };

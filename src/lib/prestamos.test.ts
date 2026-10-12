@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hoyArgentina } from "./hoy";
-import { esquemaMotivoCorreccion, esquemaPrestamo, numeroPrestamo } from "./prestamos";
+import { esquemaMotivoCorreccion, esquemaPrestamo, esquemaTercerosPrestamo, numeroPrestamo } from "./prestamos";
 
 const base = {
   clienteId: "434c0458-247d-4466-bc19-c15202a09fa1",
@@ -67,5 +67,30 @@ describe("esquemaMotivoCorreccion", () => {
 
   it("corta en 200 caracteres", () => {
     expect(esquemaMotivoCorreccion.safeParse("x".repeat(201)).success).toBe(false);
+  });
+});
+
+describe("esquemaTercerosPrestamo", () => {
+  const id1 = "434c0458-247d-4466-bc19-c15202a09fa1";
+  const id2 = "8f0d7d0e-6a4c-4a4e-9e0c-1f2a3b4c5d6e";
+  const mensajes = (filas: { participanteId: string; pct: string }[]) => {
+    const r = esquemaTercerosPrestamo.safeParse(filas);
+    return r.success ? [] : r.error.issues.map((i) => i.message);
+  };
+
+  it("lee el % en formato es-AR", () => {
+    const [f] = esquemaTercerosPrestamo.parse([{ participanteId: id1, pct: "20,5" }]);
+    expect(f!.pct.toString()).toBe("20.5");
+  });
+
+  it("sin filas es válido (100% Sociedad)", () => {
+    expect(mensajes([])).toEqual([]);
+  });
+
+  it("rechaza repetidos, % no positivo, sin tercero y suma mayor a 100", () => {
+    expect(mensajes([{ participanteId: id1, pct: "10" }, { participanteId: id1, pct: "10" }])).toEqual(["Cada tercero va una sola vez."]);
+    expect(mensajes([{ participanteId: id1, pct: "0" }])).toEqual(["Tiene que ser mayor a 0."]);
+    expect(mensajes([{ participanteId: "", pct: "10" }])).toEqual(["Elegí el tercero."]);
+    expect(mensajes([{ participanteId: id1, pct: "60" }, { participanteId: id2, pct: "41" }])).toEqual(["Los terceros suman más del 100%."]);
   });
 });

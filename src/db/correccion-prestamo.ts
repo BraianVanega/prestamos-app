@@ -189,8 +189,8 @@ async function pasarMorasPerdonadas(tx: Tx, d: { viejo: { id: string; numero: nu
 
 /** Instante nuevo (distinto y creciente) para cada operación que se vuelve a registrar. */
 async function nuevoInstante(tx: Tx) {
-  const [fila] = await tx.execute<{ t: string }>(sql`select clock_timestamp()::text as t`);
-  return sql`${fila!.t}::timestamptz`;
+  const { rows } = await tx.execute<{ t: string }>(sql`select clock_timestamp()::text as t`);
+  return sql`${rows[0]!.t}::timestamptz`;
 }
 
 export interface ResultadoCorreccion {

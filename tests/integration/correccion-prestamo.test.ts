@@ -64,8 +64,8 @@ type Escenario = Awaited<ReturnType<typeof escenario>>;
 
 /** En la app cada operación es una transacción; acá todas comparten una, así que cada una lleva su instante. */
 async function instante(tx: Tx) {
-  const [f] = await tx.execute<{ t: string }>(sql`select clock_timestamp()::text as t`);
-  return sql`${f!.t}::timestamptz`;
+  const { rows } = await tx.execute<{ t: string }>(sql`select clock_timestamp()::text as t`);
+  return sql`${rows[0]!.t}::timestamptz`;
 }
 
 /** Cobro FIFO sobre toda la deuda del cliente. */

@@ -21,11 +21,11 @@ function leerForm(form: FormData) {
   return Object.fromEntries(CAMPOS.map((c) => [c, String(form.get(c) ?? "")])) as Record<CamposCliente, string>;
 }
 
-/** postgres-js informa la violación de unicidad con code 23505; Drizzle la envuelve en `cause`. */
+/** `pg` informa la violación de unicidad con code 23505; Drizzle la envuelve en `cause`. */
 function violaUnico(err: unknown, constraint: string): boolean {
   for (let e: unknown = err; e && typeof e === "object"; e = (e as { cause?: unknown }).cause) {
-    const pg = e as { code?: string; constraint_name?: string };
-    if (pg.code === "23505" && pg.constraint_name === constraint) return true;
+    const pg = e as { code?: string; constraint?: string };
+    if (pg.code === "23505" && pg.constraint === constraint) return true;
   }
   return false;
 }

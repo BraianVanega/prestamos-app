@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
 import type { CuotaEstado } from "./estado-prestamo";
-import { gananciaPorMes, rankingAtraso, ultimosMeses, vencimientosProximos } from "./overview";
+import { agendaCobros, gananciaPorMes, rankingAtraso, ultimosMeses } from "./overview";
 
 const cuota = (numero: number, vencimiento: string, saldo: string, extra: Partial<CuotaEstado> = {}): CuotaEstado => ({
   id: `C${numero}`,
@@ -10,6 +10,7 @@ const cuota = (numero: number, vencimiento: string, saldo: string, extra: Partia
   saldoCapital: new Decimal(saldo),
   saldoInteres: new Decimal(0),
   saldo: new Decimal(saldo),
+  total: new Decimal(saldo),
   pagada: saldo === "0",
   situacion: saldo === "0" ? "pagada" : "pendiente",
   diasAtraso: 0,
@@ -23,21 +24,29 @@ describe("ultimosMeses", () => {
   });
 });
 
-describe("vencimientosProximos", () => {
-  it("solo impagas de vigentes entre hoy y hoy + días, la más próxima primero", () => {
-    const v = vencimientosProximos(
+describe("agendaCobros", () => {
+  it("suma las vencidas y agrupa por día con el total de cada bloque", () => {
+    const vencida = cuota(1, "2026-09-01", "300", { situacion: "vencida", diasAtraso: 36 });
+    const b = agendaCobros(
       [
-        { id: "A", estado: "vigente", cuotas: [cuota(1, "2026-10-06", "100"), cuota(2, "2026-10-09", "100"), cuota(3, "2026-10-15", "100")] },
-        { id: "B", estado: "vigente", cuotas: [cuota(1, "2026-10-07", "50"), cuota(2, "2026-10-08", "0")] },
-        { id: "C", estado: "cancelado", cuotas: [cuota(1, "2026-10-07", "10")] },
+        { id: "A", estado: "vigente", cuotas: [vencida, cuota(2, "2026-10-07", "100"), cuota(3, "2026-10-12", "100"), cuota(4, "2026-10-20", "100")] },
+        { id: "B", estado: "vigente", cuotas: [cuota(1, "2026-10-08", "50"), cuota(2, "2026-10-14", "70"), cuota(3, "2026-10-30", "1")] },
+        { id: "C", estado: "cancelado", cuotas: [cuota(1, "2026-09-01", "10")] },
       ],
       "2026-10-07",
-      7,
+      15,
     );
-    expect(v.map((x) => [x.prestamoId, x.cuota.numero, x.enDias])).toEqual([
-      ["B", 1, 0],
-      ["A", 2, 2],
+    expect(b.map((x) => [x.grupo, x.items.map((v) => `${v.prestamoId}${v.cuota.numero}`), x.total.toFixed(2)])).toEqual([
+      ["vencidas", ["A1"], "300.00"],
+      ["hoy", ["A2"], "100.00"],
+      ["manana", ["B1"], "50.00"],
+      ["semana", ["A3", "B2"], "170.00"],
+      ["despues", ["A4"], "100.00"],
     ]);
+  });
+
+  it("sin nada para cobrar no hay bloques", () => {
+    expect(agendaCobros([{ id: "A", estado: "vigente", cuotas: [cuota(1, "2026-10-01", "0")] }], "2026-10-07", 7)).toEqual([]);
   });
 });
 

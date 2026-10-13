@@ -18,21 +18,44 @@ export interface PrestamoParaAgenda {
 export interface Vencimiento {
   prestamoId: string;
   cuota: CuotaEstado;
-  /** 0 = hoy, 1 = mañana… */
+  /** 0 = hoy, 1 = mañana…; negativo si ya venció. */
   enDias: number;
 }
 
-/** Cuotas impagas de préstamos vigentes que vencen entre hoy y hoy + `dias`, la más próxima primero. */
-export function vencimientosProximos(prestamos: PrestamoParaAgenda[], hoy: Fecha, dias: number): Vencimiento[] {
+/** Cuotas impagas de préstamos vigentes, la más vieja primero. */
+function cuotasImpagas(prestamos: PrestamoParaAgenda[], hoy: Fecha): Vencimiento[] {
   return prestamos
     .filter((p) => p.estado === "vigente")
-    .flatMap((p) =>
-      p.cuotas
-        .filter((c) => !c.pagada)
-        .map((c) => ({ prestamoId: p.id, cuota: c, enDias: diasEntre(hoy, c.vencimiento) }))
-        .filter((v) => v.enDias >= 0 && v.enDias <= dias),
-    )
+    .flatMap((p) => p.cuotas.filter((c) => !c.pagada).map((c) => ({ prestamoId: p.id, cuota: c, enDias: diasEntre(hoy, c.vencimiento) })))
     .sort((a, b) => a.enDias - b.enDias || a.cuota.numero - b.cuota.numero);
+}
+
+export type GrupoAgenda = "vencidas" | "hoy" | "manana" | "semana" | "despues";
+
+export interface BloqueAgenda {
+  grupo: GrupoAgenda;
+  items: Vencimiento[];
+  /** Lo que falta cobrar del bloque (ARS, sin mora). */
+  total: Decimal;
+}
+
+const grupoDe = (enDias: number): GrupoAgenda =>
+  enDias < 0 ? "vencidas" : enDias === 0 ? "hoy" : enDias === 1 ? "manana" : enDias <= 7 ? "semana" : "despues";
+
+/**
+ * Agenda de cobros: todas las cuotas vencidas impagas más las que vencen
+ * entre hoy y hoy + `dias`, en bloques (vencidas, hoy, mañana, esta semana,
+ * más adelante) con su total. Los bloques vacíos no aparecen.
+ */
+export function agendaCobros(prestamos: PrestamoParaAgenda[], hoy: Fecha, dias: number): BloqueAgenda[] {
+  const orden: GrupoAgenda[] = ["vencidas", "hoy", "manana", "semana", "despues"];
+  const items = cuotasImpagas(prestamos, hoy).filter((v) => v.enDias <= dias);
+  return orden
+    .map((grupo) => {
+      const delGrupo = items.filter((v) => grupoDe(v.enDias) === grupo);
+      return { grupo, items: delGrupo, total: delGrupo.reduce((s, v) => s.plus(v.cuota.saldo), new Decimal(0)) };
+    })
+    .filter((b) => b.items.length > 0);
 }
 
 const ORDEN_RIESGO: Record<NivelRiesgo, number> = { negro: 0, rojo: 1, naranja: 2, amarillo: 3, verde: 4 };

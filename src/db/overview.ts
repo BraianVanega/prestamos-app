@@ -11,9 +11,9 @@ import {
   gananciaPorMes,
   rankingAtraso,
   ultimosMeses,
-  vencimientosProximos,
+  agendaCobros,
+  type BloqueAgenda,
   type PrestamoEnAtraso,
-  type Vencimiento,
 } from "@/engine/overview";
 import { DECIMALES } from "@/engine/redondeo";
 
@@ -33,7 +33,9 @@ export interface Overview {
     gananciaUsdt: Decimal;
   };
   efectivo: { ars: Decimal; masViejo: Fecha | null };
-  vencimientos: Vencimiento[];
+  /** Cuotas a cobrar: vencidas + las de los próximos `diasAgenda` días. */
+  agenda: BloqueAgenda[];
+  diasAgenda: number;
   atraso: PrestamoEnAtraso[];
   /** Cartera (USDT) de los préstamos con atraso. */
   exposicionMoraUsdt: Decimal;
@@ -42,10 +44,11 @@ export interface Overview {
   ultimaOperacion: { en: Date; tipo: string; descripcion: string | null; usuario: string } | null;
 }
 
-export const DIAS_AGENDA = 7;
+/** Horizontes de la agenda de cobros (días); el primero es el de entrada. */
+export const DIAS_AGENDA = [7, 15, 30] as const;
 export const MESES_GANANCIA = 6;
 
-export async function cargarOverview(hoy: Fecha): Promise<Overview> {
+export async function cargarOverview(hoy: Fecha, diasAgenda: number = DIAS_AGENDA[0]): Promise<Overview> {
   const mesActual = hoy.slice(0, 7);
   const meses = ultimosMeses(hoy, MESES_GANANCIA);
   const desde = `${meses[0]}-01`;
@@ -143,7 +146,8 @@ export async function cargarOverview(hoy: Fecha): Promise<Overview> {
       gananciaUsdt: gananciaMeses.at(-1)?.total ?? new Decimal(0),
     },
     efectivo: { ars: cajaEfectivo, masViejo: pendientes[0]?.fecha ?? null },
-    vencimientos: vencimientosProximos(agenda, hoy, DIAS_AGENDA),
+    agenda: agendaCobros(agenda, hoy, diasAgenda),
+    diasAgenda,
     atraso,
     exposicionMoraUsdt: atraso.reduce((s, a) => s.plus(prestamos.get(a.id)!.carteraUsdt), new Decimal(0)),
     ganancia: gananciaMeses,

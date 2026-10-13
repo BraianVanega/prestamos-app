@@ -1,13 +1,14 @@
 import Decimal from "decimal.js";
-import { ArrowLeftRight, CalendarClock, ChartColumn, CircleCheck, Gavel, Landmark, PieChart, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowLeftRight, CalendarClock, ChartColumn, CircleCheck, Gavel, HandCoins, Landmark, PieChart, TriangleAlert, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BadgeRiesgo, COLORES_RIESGO } from "@/components/app/riesgo";
 import { buttonVariants } from "@/components/ui/button";
 import { cargarOverview, DIAS_AGENDA, MESES_GANANCIA, type Overview } from "@/db/overview";
 import { BANDAS_RIESGO_PCT, type NivelRiesgo } from "@/engine/estado-prestamo";
+import type { GrupoAgenda } from "@/engine/overview";
 import { diasEntre } from "@/engine/fechas";
-import { formatearDocumento, formatearFecha, formatearFechaHora } from "@/lib/formato";
+import { formatearFecha, formatearFechaHora } from "@/lib/formato";
 import { hoyArgentina } from "@/lib/hoy";
 import { formatearArs, formatearPct, formatearTc, formatearUsdt } from "@/lib/numeros";
 import { numeroPrestamo } from "@/lib/prestamos";
@@ -69,8 +70,10 @@ function Encabezado({ icono, titulo, subtitulo, extra }: { icono: React.ReactNod
   );
 }
 
-export default async function OverviewPage() {
-  const o = await cargarOverview(hoyArgentina());
+export default async function OverviewPage({ searchParams }: PageProps<"/">) {
+  const { dias } = await searchParams;
+  const diasAgenda = DIAS_AGENDA.find((d) => String(d) === dias) ?? DIAS_AGENDA[0];
+  const o = await cargarOverview(hoyArgentina(), diasAgenda);
 
   return (
     <section className="flex flex-col gap-margin">
@@ -83,7 +86,7 @@ export default async function OverviewPage() {
       </div>
       <div className="grid gap-margin xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
         <div className="flex min-w-0 flex-col gap-margin">
-          <Vencimientos o={o} />
+          <AgendaCobros o={o} />
           <GananciaSemestral o={o} />
         </div>
         <Atraso o={o} />
@@ -236,79 +239,139 @@ function Efectivo({ o }: { o: Overview }) {
   );
 }
 
-function Vencimientos({ o }: { o: Overview }) {
-  const th = "px-space-md py-space-sm text-label-caps text-on-surface-variant uppercase whitespace-nowrap";
-  const cuando = (d: number) => (d === 0 ? "Hoy" : d === 1 ? "Mañana" : `En ${d} días`);
+const DIA_SEMANA = new Intl.DateTimeFormat("es-AR", { weekday: "short", timeZone: "UTC" });
+const diaYFecha = (f: string) => `${DIA_SEMANA.format(new Date(`${f}T00:00:00Z`)).replace(".", "")} ${formatearFecha(f).slice(0, 5)}`;
+
+const TITULO_GRUPO: Record<GrupoAgenda, string> = {
+  vencidas: "Vencidas",
+  hoy: "Hoy",
+  manana: "Mañana",
+  semana: "Esta semana",
+  despues: "Más adelante",
+};
+
+function AgendaCobros({ o }: { o: Overview }) {
+  const vencidas = o.agenda.find((b) => b.grupo === "vencidas");
+  const proximas = o.agenda.filter((b) => b.grupo !== "vencidas");
+  const totalProximas = proximas.reduce((s, b) => s.plus(b.total), new Decimal(0));
+  const cuotasProximas = proximas.reduce((n, b) => n + b.items.length, 0);
+  const plural = (n: number) => `${n} ${n === 1 ? "cuota" : "cuotas"}`;
+
   return (
     <Panel className="overflow-hidden">
       <Encabezado
         icono={<CalendarClock aria-hidden />}
-        titulo="Vencimientos próximos"
-        subtitulo={`Cuotas impagas que vencen en los próximos ${DIAS_AGENDA} días`}
+        titulo="Agenda de cobros"
+        subtitulo={`Lo vencido y lo que vence en los próximos ${o.diasAgenda} días`}
         extra={
-          <span className="rounded-sm bg-surface-container px-space-sm py-space-2xs font-mono text-badge-label text-on-surface-variant tabular-nums">
-            {o.vencimientos.length} {o.vencimientos.length === 1 ? "CUOTA" : "CUOTAS"}
-          </span>
+          <nav aria-label="Horizonte de la agenda" className="flex rounded-lg border border-outline-variant p-space-2xs">
+            {DIAS_AGENDA.map((d) => (
+              <Link
+                key={d}
+                href={d === DIAS_AGENDA[0] ? "/" : `/?dias=${d}`}
+                scroll={false}
+                aria-current={d === o.diasAgenda ? "true" : undefined}
+                className={cn(
+                  "rounded-sm px-space-sm py-space-2xs font-mono text-badge-label tabular-nums",
+                  d === o.diasAgenda ? "bg-primary text-on-primary" : "text-on-surface-variant hover:bg-surface-container",
+                )}
+              >
+                {d} DÍAS
+              </Link>
+            ))}
+          </nav>
         }
       />
-      {o.vencimientos.length === 0 ? (
-        <p className="px-space-md py-margin text-center text-body-md text-on-surface-variant">No vence nada en los próximos {DIAS_AGENDA} días.</p>
+
+      <div className="grid grid-cols-1 gap-space-sm border-b border-outline-variant px-space-md py-space-md sm:grid-cols-2">
+        <div className="flex flex-col gap-space-2xs">
+          <Etiqueta>A cobrar en {o.diasAgenda} días</Etiqueta>
+          <span className="font-mono tabular-nums">
+            <span className="text-data-currency-primary text-on-surface">${formatearArs(totalProximas)}</span>{" "}
+            <span className="text-body-sm text-on-surface-variant">en {plural(cuotasProximas)}</span>
+          </span>
+        </div>
+        <div className="flex flex-col gap-space-2xs">
+          <Etiqueta className={cn(vencidas && "text-error")}>Vencido sin cobrar</Etiqueta>
+          <span className="font-mono tabular-nums">
+            <span className={cn("text-data-currency-primary", vencidas ? "text-error" : "text-on-surface")}>
+              ${formatearArs(vencidas?.total ?? new Decimal(0))}
+            </span>{" "}
+            <span className="text-body-sm text-on-surface-variant">{vencidas ? `en ${plural(vencidas.items.length)}` : "nada atrasado"}</span>
+          </span>
+        </div>
+      </div>
+
+      {o.agenda.length === 0 ? (
+        <p className="flex items-center justify-center gap-space-sm px-space-md py-margin text-body-md text-on-surface-variant">
+          <CircleCheck className="size-4 text-tertiary" aria-hidden />
+          No hay nada para cobrar en los próximos {o.diasAgenda} días.
+        </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead className="border-b border-outline-variant bg-surface-container-low">
-              <tr>
-                <th className={cn(th, "text-left")}>Vencimiento</th>
-                <th className={cn(th, "text-left")}>Préstamo</th>
-                <th className={cn(th, "text-left")}>Cliente</th>
-                <th className={cn(th, "text-right")}>Cuota</th>
-                <th className={cn(th, "text-right")}>Monto exigible</th>
-              </tr>
-            </thead>
-            <tbody>
-              {o.vencimientos.map((v) => {
+        o.agenda.map((b) => (
+          <div key={b.grupo}>
+            <div
+              className={cn(
+                "flex items-center gap-space-sm border-b border-outline-variant px-space-md py-space-xs",
+                b.grupo === "vencidas" ? "bg-riesgo-rojo-bg text-riesgo-rojo-fg" : "bg-surface-container-low text-on-surface-variant",
+              )}
+            >
+              <span className="text-label-caps uppercase">
+                {TITULO_GRUPO[b.grupo]}
+                {(b.grupo === "hoy" || b.grupo === "manana") && <span className="font-mono tabular-nums"> · {diaYFecha(b.items[0]!.cuota.vencimiento)}</span>}
+              </span>
+              <span className="text-body-sm">({plural(b.items.length)})</span>
+              <span className="ml-auto font-mono text-data-cell font-semibold tabular-nums">${formatearArs(b.total)}</span>
+            </div>
+            <ul>
+              {b.items.map((v) => {
                 const p = o.prestamos.get(v.prestamoId)!;
+                const c = v.cuota;
+                const parcial = c.saldo.lt(c.total);
+                const cuando =
+                  v.enDias < 0
+                    ? `venció el ${diaYFecha(c.vencimiento)} · hace ${-v.enDias} ${v.enDias === -1 ? "día" : "días"}`
+                    : v.enDias <= 1
+                      ? null
+                      : `vence el ${diaYFecha(c.vencimiento)} · en ${v.enDias} días`;
                 return (
-                  <tr key={v.cuota.id} className="border-b border-outline-variant/60 last:border-b-0 hover:bg-primary/4">
-                    <td className="px-space-md py-space-sm whitespace-nowrap">
-                      <span
-                        className={cn(
-                          "rounded-sm px-space-sm py-space-2xs font-mono text-data-cell tabular-nums",
-                          v.enDias === 0
-                            ? "bg-riesgo-rojo-bg text-riesgo-rojo-fg"
-                            : v.enDias === 1
-                              ? "bg-primary-fixed text-on-primary-fixed-variant"
-                              : "text-on-surface",
+                  <li
+                    key={c.id}
+                    className="flex flex-wrap items-center gap-x-margin gap-y-space-xs border-b border-outline-variant/60 px-space-md py-space-sm last:border-b-0 hover:bg-primary/4"
+                  >
+                    <div className="flex min-w-0 flex-1 basis-56 flex-col">
+                      <span className="truncate text-body-lg font-medium text-on-surface">{p.cliente.nombre}</span>
+                      <span className="text-body-sm text-on-surface-variant">
+                        <Link href={`/prestamos/${p.id}`} className="font-mono font-semibold text-primary tabular-nums hover:underline">
+                          {numeroPrestamo(p.numero)}
+                        </Link>{" "}
+                        · cuota <span className="font-mono tabular-nums">{c.numero}</span> de <span className="font-mono tabular-nums">{p.nCuotas}</span>
+                        {cuando && (
+                          <>
+                            {" "}
+                            · <span className={cn("font-mono tabular-nums", v.enDias < 0 && "text-error")}>{cuando}</span>
+                          </>
                         )}
-                      >
-                        {cuando(v.enDias)} ({formatearFecha(v.cuota.vencimiento).slice(0, 5)})
                       </span>
-                    </td>
-                    <td className="px-space-md py-space-sm">
-                      <Link href={`/prestamos/${p.id}`} className="font-mono text-body-lg font-semibold text-primary tabular-nums hover:underline">
-                        {numeroPrestamo(p.numero)}
-                      </Link>
-                    </td>
-                    <td className="px-space-md py-space-sm">
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-body-lg font-medium text-on-surface">{p.cliente.nombre}</span>
-                        {p.cliente.documento && (
-                          <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">{formatearDocumento(p.cliente.documento)}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-space-md py-space-sm text-right font-mono text-data-cell whitespace-nowrap tabular-nums">
-                      {String(v.cuota.numero).padStart(2, "0")} / {String(p.nCuotas).padStart(2, "0")}
-                    </td>
-                    <td className="px-space-md py-space-sm text-right font-mono text-data-currency-primary whitespace-nowrap text-on-surface tabular-nums">
-                      ${formatearArs(v.cuota.saldo)}
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="ml-auto flex flex-col items-end">
+                      <span className="font-mono text-data-currency-primary whitespace-nowrap text-on-surface tabular-nums">${formatearArs(c.saldo)}</span>
+                      {parcial && (
+                        <span className="font-mono text-body-sm whitespace-nowrap text-on-surface-variant tabular-nums">
+                          pagó ${formatearArs(c.total.minus(c.saldo))} de ${formatearArs(c.total)}
+                        </span>
+                      )}
+                    </div>
+                    <Link href={`/pagos/nuevo?cliente=${p.cliente.id}`} className={cn(buttonVariants({ variant: v.enDias <= 0 ? "default" : "outline", size: "sm" }), "gap-space-xs")}>
+                      <HandCoins aria-hidden />
+                      Cobrar
+                    </Link>
+                  </li>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </ul>
+          </div>
+        ))
       )}
     </Panel>
   );

@@ -33,6 +33,8 @@ export interface CuotaEstado {
   saldoCapital: Decimal;
   saldoInteres: Decimal;
   saldo: Decimal;
+  /** Capital + interés de la cuota (menos descuentos), para mostrar "pagó X de Y". */
+  total: Decimal;
   pagada: boolean;
   situacion: SituacionCuota;
   /** Días desde el vencimiento si está impaga y vencida; si no, 0. */
@@ -60,6 +62,7 @@ export function estadoCuotas(cuotas: CuotaConPagos[], hoy: Fecha): EstadoCuotas 
       const saldoCapital = noNegativo(new Decimal(c.arsCapital).minus(c.pagadoCapital));
       const saldoInteres = noNegativo(new Decimal(c.arsInteres).minus(c.pagadoInteres).minus(c.descuentoInteres ?? 0));
       const saldo = saldoCapital.plus(saldoInteres);
+      const total = new Decimal(c.arsCapital).plus(c.arsInteres).minus(c.descuentoInteres ?? 0);
       const pagada = saldo.isZero();
       const atraso = diasEntre(c.vencimiento, hoy);
       const diasAtraso = !pagada && atraso > 0 ? atraso : 0;
@@ -71,6 +74,7 @@ export function estadoCuotas(cuotas: CuotaConPagos[], hoy: Fecha): EstadoCuotas 
         saldoCapital,
         saldoInteres,
         saldo,
+        total,
         pagada,
         situacion: pagada ? "pagada" : diasAtraso > 0 ? "vencida" : parcial ? "parcial" : "pendiente",
         diasAtraso,

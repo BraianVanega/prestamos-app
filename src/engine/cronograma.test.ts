@@ -1,15 +1,15 @@
 import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
-import { calcularPlan, mesesDelPlazo, proyectarUsdt, tasaTotalSugerida } from "./cronograma";
+import { calcularPlan, mesesDelPlazo, proyectarUsdt, tasaMensualEquivalente } from "./cronograma";
 
 const suma = (xs: Decimal[]) => xs.reduce((a, b) => a.plus(b), new Decimal(0));
 
-describe("tasaTotalSugerida", () => {
-  it("mensual × meses, con meses = días / 30", () => {
-    expect(tasaTotalSugerida("12", "quincena", 6).toFixed(4)).toBe("36.0000");
-    expect(tasaTotalSugerida("10", "mes", 4).toFixed(4)).toBe("40.0000");
-    expect(tasaTotalSugerida("10", "semana", 4).toFixed(4)).toBe("9.3333");
-    expect(tasaTotalSugerida("15", "dia", 20).toFixed(4)).toBe("10.0000");
+describe("tasaMensualEquivalente", () => {
+  it("total / meses, con meses = días / 30", () => {
+    expect(tasaMensualEquivalente("36", "quincena", 6).toFixed(4)).toBe("12.0000");
+    expect(tasaMensualEquivalente("40", "mes", 4).toFixed(4)).toBe("10.0000");
+    expect(tasaMensualEquivalente("50", "semana", 4).toFixed(4)).toBe("53.5714");
+    expect(tasaMensualEquivalente("10", "dia", 20).toFixed(4)).toBe("15.0000");
   });
 
   it("mensual usa la cantidad de cuotas exacta, no días / 30", () => {

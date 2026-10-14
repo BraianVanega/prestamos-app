@@ -19,7 +19,7 @@ export type EstadoFormPrestamo = {
 };
 
 const CAMPOS: CamposPrestamo[] = [
-  "clienteId", "fechaDesembolso", "arsCapital", "tcEntrada", "tasaMensualPct", "frecuencia",
+  "clienteId", "fechaDesembolso", "arsCapital", "tcEntrada", "frecuencia",
   "nCuotas", "tasaTotalPct", "moraPct", "diasGracia", "notas",
 ];
 

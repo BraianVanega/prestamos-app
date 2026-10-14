@@ -29,13 +29,13 @@ import { Alerta, Campo, EntradaNumero, Panel } from "@/components/app/campos";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { calcularPlan, proyectarUsdt, tasaTotalSugerida } from "@/engine/cronograma";
+import { calcularPlan, proyectarUsdt, tasaMensualEquivalente } from "@/engine/cronograma";
 import { participacionesPrestamo } from "@/engine/desembolso";
 import { DECIMALES } from "@/engine/redondeo";
 import { repartir } from "@/engine/reparto";
 import type { Fecha, Frecuencia } from "@/engine/fechas";
 import { formatearFecha } from "@/lib/formato";
-import { formatearArs, formatearPct, formatearTc, formatearUsdt, parsearDecimal, textoEditable } from "@/lib/numeros";
+import { formatearArs, formatearPct, formatearTc, formatearUsdt, parsearDecimal } from "@/lib/numeros";
 import { FRECUENCIAS, type CamposPrestamo } from "@/lib/prestamos";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +66,6 @@ export interface ValoresPrestamo {
   fechaDesembolso: Fecha;
   arsCapital: string;
   tcEntrada: string;
-  tasaMensualPct: string;
   frecuencia: Frecuencia;
   nCuotas: string;
   tasaTotalPct: string;
@@ -139,7 +138,6 @@ export function FormPrestamo({
         fechaDesembolso: hoy,
         arsCapital: "",
         tcEntrada: "",
-        tasaMensualPct: "",
         frecuencia: "quincena",
         nCuotas: "",
         tasaTotalPct: "",
@@ -150,14 +148,6 @@ export function FormPrestamo({
   );
   const [motivo, setMotivo] = useState("");
   const [filas, setFilas] = useState<FilaTercero[]>(tercerosIniciales ?? []);
-  // Al corregir, la tasa pactada se respeta si no coincide con la sugerida.
-  const [tasaTotalEditada, setTasaTotalEditada] = useState(() => {
-    if (!inicial) return false;
-    const mensual = parsearDecimal(inicial.tasaMensualPct);
-    const n = entero(inicial.nCuotas);
-    const total = parsearDecimal(inicial.tasaTotalPct);
-    return !(mensual && n && total && tasaTotalSugerida(mensual, inicial.frecuencia, n).eq(total));
-  });
 
   // Los errores del servidor se ocultan campo por campo a medida que se corrigen.
   const [corregidos, setCorregidos] = useState({ de: estado, campos: new Set<CamposPrestamo | "motivo" | "terceros">() });
@@ -173,25 +163,23 @@ export function FormPrestamo({
   const set = (campo: keyof typeof v) => (valor: string) => {
     setV((prev) => ({ ...prev, [campo]: valor }));
     corregir(campo);
-    // La tasa total sugerida sale de estos tres: si cambian, su error ya no aplica.
-    if (campo === "tasaMensualPct" || campo === "nCuotas" || campo === "frecuencia") corregir("tasaTotalPct");
+    // La mensual equivalente sale de estos tres: si cambia el plazo, el error de la tasa ya no aplica.
+    if (campo === "nCuotas" || campo === "frecuencia") corregir("tasaTotalPct");
   };
 
-  const sugerida = useMemo(() => {
-    const mensual = parsearDecimal(v.tasaMensualPct);
+  const tasaTotal = parsearDecimal(v.tasaTotalPct);
+  const mensualEquivalente = useMemo(() => {
+    const total = parsearDecimal(v.tasaTotalPct);
     const n = entero(v.nCuotas);
-    return mensual && mensual.gte(0) && n && n > 0 ? tasaTotalSugerida(mensual, v.frecuencia, n) : null;
-  }, [v.tasaMensualPct, v.nCuotas, v.frecuencia]);
-  const tasaTotalTexto = tasaTotalEditada ? v.tasaTotalPct : sugerida ? textoEditable(sugerida) : "";
-  const tasaTotal = parsearDecimal(tasaTotalTexto);
+    return total && total.gte(0) && n && n > 0 ? tasaMensualEquivalente(total, v.frecuencia, n) : null;
+  }, [v.tasaTotalPct, v.nCuotas, v.frecuencia]);
 
   const calculo = useMemo(() => {
     const capital = parsearDecimal(v.arsCapital);
     const tc = parsearDecimal(v.tcEntrada);
-    const mensual = parsearDecimal(v.tasaMensualPct);
-    const total = parsearDecimal(tasaTotalTexto);
+    const total = parsearDecimal(v.tasaTotalPct);
     const n = entero(v.nCuotas);
-    if (!capital || !tc || !mensual || !total || !n || capital.lte(0) || tc.lte(0)) return null;
+    if (!capital || !tc || !total || !n || n <= 0 || capital.lte(0) || tc.lte(0)) return null;
     try {
       const plan = calcularPlan({
         arsCapital: capital,
@@ -201,11 +189,11 @@ export function FormPrestamo({
         frecuencia: v.frecuencia,
         nCuotas: n,
       });
-      return { plan, proy: proyectarUsdt(plan, tc, mensual), capital, tc };
+      return { plan, proy: proyectarUsdt(plan, tc, tasaMensualEquivalente(total, v.frecuencia, n)), capital, tc };
     } catch {
       return null;
     }
-  }, [v.arsCapital, v.tcEntrada, v.tasaMensualPct, tasaTotalTexto, v.nCuotas, v.fechaDesembolso, v.frecuencia]);
+  }, [v.arsCapital, v.tcEntrada, v.tasaTotalPct, v.nCuotas, v.fechaDesembolso, v.frecuencia]);
 
   // Reparto del préstamo: Sociedad (abierta por socio) y cada tercero, con el USDT que pone cada uno.
   const estructura = useMemo(() => {
@@ -237,7 +225,6 @@ export function FormPrestamo({
   return (
     <form ref={formRef} action={enviar} noValidate className="flex flex-col gap-margin">
       <input type="hidden" name="clienteId" value={cliente?.value ?? ""} />
-      <input type="hidden" name="tasaTotalPct" value={tasaTotalTexto} />
       {filas.map((f, i) => (
         <span key={i} hidden>
           <input type="hidden" name="terceroId" value={f.participanteId} />
@@ -415,8 +402,8 @@ export function FormPrestamo({
 
           <Panel icono={<SlidersHorizontal aria-hidden />} titulo="Parámetros financieros y plazos">
             <div className="grid grid-cols-1 gap-margin md:grid-cols-3">
-              <Campo id="tasaMensualPct" etiqueta="Tasa mensual (%)" error={err("tasaMensualPct")}>
-                <EntradaNumero id="tasaMensualPct" valor={v.tasaMensualPct} onChange={set("tasaMensualPct")} sufijo="%" error={!!err("tasaMensualPct")} />
+              <Campo id="tasaTotalPct" etiqueta="Tasa del préstamo (%)" error={err("tasaTotalPct")}>
+                <EntradaNumero id="tasaTotalPct" valor={v.tasaTotalPct} onChange={set("tasaTotalPct")} sufijo="%" error={!!err("tasaTotalPct")} />
               </Campo>
               <Campo id="frecuencia" etiqueta="Frecuencia de pago" error={err("frecuencia")}>
                 <Select name="frecuencia" items={ITEMS_FRECUENCIA} value={v.frecuencia} onValueChange={(f) => f && set("frecuencia")(f)}>
@@ -437,40 +424,18 @@ export function FormPrestamo({
               </Campo>
             </div>
 
-            <div className="flex flex-wrap items-center gap-margin rounded-lg bg-surface-container-low p-space-md">
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="text-label-caps text-on-surface-variant uppercase">Tasa total sugerida</span>
-                <span className="text-body-md text-on-surface">
-                  {sugerida ? (
-                    <>
-                      <span className="font-mono tabular-nums">{formatearPct(sugerida)}%</span> = mensual × meses del plazo
-                    </>
-                  ) : (
-                    "Completá tasa mensual, frecuencia y cuotas."
-                  )}
-                </span>
-                {tasaTotalEditada && sugerida && (
-                  <button type="button" onClick={() => setTasaTotalEditada(false)} className="self-start text-body-sm text-primary hover:underline">
-                    Usar la sugerida
-                  </button>
+            <div className="flex flex-col rounded-lg bg-surface-container-low p-space-md">
+              <span className="text-label-caps text-on-surface-variant uppercase">Tasa del préstamo completo</span>
+              <span className="text-body-md text-on-surface">
+                {tasaTotal && mensualEquivalente ? (
+                  <>
+                    Se cobra el <span className="font-mono tabular-nums">{formatearPct(tasaTotal)}%</span> del capital en todo el plazo
+                    (equivale a <span className="font-mono tabular-nums">{formatearPct(mensualEquivalente)}%</span> mensual).
+                  </>
+                ) : (
+                  "Completá tasa, frecuencia y cuotas."
                 )}
-              </div>
-              <div className="flex flex-col gap-space-xs">
-                <Label htmlFor="tasaTotal">Tasa total pactada</Label>
-                <EntradaNumero
-                  id="tasaTotal"
-                  sinNombre
-                  valor={tasaTotalTexto}
-                  onChange={(t) => {
-                    setTasaTotalEditada(true);
-                    set("tasaTotalPct")(t);
-                  }}
-                  sufijo="%"
-                  error={!!err("tasaTotalPct")}
-                  className="w-36"
-                />
-                {err("tasaTotalPct") && <p className="text-body-sm text-error">{err("tasaTotalPct")}</p>}
-              </div>
+              </span>
             </div>
           </Panel>
 

@@ -7,7 +7,6 @@ const base = {
   fechaDesembolso: "2026-10-03",
   arsCapital: "3.500.000",
   tcEntrada: "1285,00",
-  tasaMensualPct: "12",
   frecuencia: "quincena",
   nCuotas: "6",
   tasaTotalPct: "36",
@@ -30,11 +29,18 @@ describe("esquemaPrestamo", () => {
     expect(d.notas).toBeNull();
   });
 
+  it("la tasa cargada es la total; la mensual se deriva del plazo", () => {
+    expect(esquemaPrestamo.parse(base).tasaMensualPct.toFixed(4)).toBe("12.0000");
+    const semanal = esquemaPrestamo.parse({ ...base, frecuencia: "semana", nCuotas: "4", tasaTotalPct: "50" });
+    expect(semanal.tasaTotalPct.toFixed(4)).toBe("50.0000");
+    expect(errores({ frecuencia: "dia", nCuotas: "1", tasaTotalPct: "99999" }).tasaTotalPct).toMatch(/demasiado alta/);
+  });
+
   it("valida los límites de la base", () => {
     expect(errores({ arsCapital: "0" })).toHaveProperty("arsCapital");
     expect(errores({ arsCapital: "1.000,123" }).arsCapital).toMatch(/2 decimales/);
     expect(errores({ tcEntrada: "abc" }).tcEntrada).toMatch(/TC de entrada/);
-    expect(errores({ tasaMensualPct: "-1" })).toHaveProperty("tasaMensualPct");
+    expect(errores({ tasaTotalPct: "-1" })).toHaveProperty("tasaTotalPct");
     expect(errores({ tasaTotalPct: "100000" }).tasaTotalPct).toMatch(/demasiado grande/);
     expect(errores({ nCuotas: "0" })).toHaveProperty("nCuotas");
     expect(errores({ nCuotas: "2,5" })).toHaveProperty("nCuotas");

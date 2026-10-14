@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
+import { tasaMensualEquivalente } from "@/engine/cronograma";
 import type { Frecuencia } from "@/engine/fechas";
 import { decimal, entero, fecha } from "./validacion";
 
@@ -15,17 +16,25 @@ export const esquemaPrestamo = z.object({
   fechaDesembolso: fecha,
   arsCapital: decimal({ campo: "el capital", decimales: 2, maxEnteros: 18, min: "pos" }),
   tcEntrada: decimal({ campo: "el TC de entrada", decimales: 6, maxEnteros: 14, min: "pos" }),
-  tasaMensualPct: decimal({ campo: "la tasa mensual", decimales: 4, maxEnteros: 5, min: "noNeg" }),
   frecuencia: z.enum(["dia", "semana", "quincena", "mes"], "Elegí la frecuencia."),
   nCuotas: entero("la cantidad de cuotas", 1, 365),
-  tasaTotalPct: decimal({ campo: "la tasa total", decimales: 4, maxEnteros: 5, min: "noNeg" }),
+  tasaTotalPct: decimal({ campo: "la tasa", decimales: 4, maxEnteros: 5, min: "noNeg" }),
   moraPct: decimal({ campo: "la mora", decimales: 4, maxEnteros: 5, min: "noNeg" }),
   diasGracia: entero("los días de gracia", 0, 365),
   notas: z
     .string()
     .trim()
     .transform((v) => v || null),
-});
+})
+  // La tasa que se carga es la del préstamo completo; la mensual se deriva (solo informativa).
+  .transform((d, ctx) => {
+    const tasaMensualPct = tasaMensualEquivalente(d.tasaTotalPct, d.frecuencia, d.nCuotas);
+    if (tasaMensualPct.gte(100000)) {
+      ctx.issues.push({ code: "custom", path: ["tasaTotalPct"], message: "La tasa es demasiado alta para un plazo tan corto.", input: d.tasaTotalPct });
+      return z.NEVER;
+    }
+    return { ...d, tasaMensualPct };
+  });
 
 export type CamposPrestamo = keyof z.input<typeof esquemaPrestamo>;
 export type DatosPrestamoForm = z.output<typeof esquemaPrestamo>;

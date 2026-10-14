@@ -87,7 +87,6 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
         fechaDesembolso: p.fechaDesembolso,
         arsCapital: textoEditable(p.arsCapital),
         tcEntrada: textoEditable(p.tcEntrada),
-        tasaMensualPct: textoEditable(p.tasaMensualPct),
         frecuencia: p.frecuencia,
         nCuotas: String(p.nCuotas),
         tasaTotalPct: textoEditable(p.tasaTotalPct),

@@ -8,13 +8,16 @@ export function mesesDelPlazo(frecuencia: Frecuencia, nCuotas: number): Decimal 
   return new Decimal(diasDelPlazo(frecuencia, nCuotas)).div(30);
 }
 
-/** Tasa del plazo completo sugerida = tasa mensual × meses (editable en el alta). */
-export function tasaTotalSugerida(
-  tasaMensualPct: Decimal.Value,
+/**
+ * La tasa que se pacta es la del préstamo completo (50% = 50% del capital, dure
+ * lo que dure). La mensual es solo informativa: tasa total / meses del plazo.
+ */
+export function tasaMensualEquivalente(
+  tasaTotalPct: Decimal.Value,
   frecuencia: Frecuencia,
   nCuotas: number,
 ): Decimal {
-  return redondearPct(new Decimal(tasaMensualPct).times(mesesDelPlazo(frecuencia, nCuotas)));
+  return redondearPct(new Decimal(tasaTotalPct).div(mesesDelPlazo(frecuencia, nCuotas)));
 }
 
 export interface DatosPrestamo {

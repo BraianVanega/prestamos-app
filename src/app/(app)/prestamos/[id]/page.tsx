@@ -310,8 +310,8 @@ function Cronograma({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapita
         <CalendarDays className="size-5 text-primary" aria-hidden />
         <h2 className="text-headline-sm text-on-surface">Cronograma de cuotas y pagos</h2>
         <span className="ml-auto text-body-md text-on-surface-variant">
-          {p.nCuotas} cuotas {FRECUENCIAS[p.frecuencia].plural} · Tasa mensual{" "}
-          <span className="font-mono font-semibold text-on-surface tabular-nums">{formatearPct(p.tasaMensualPct)}%</span>
+          {p.nCuotas} cuotas {FRECUENCIAS[p.frecuencia].plural} · Tasa{" "}
+          <span className="font-mono font-semibold text-on-surface tabular-nums">{formatearPct(p.tasaTotalPct)}%</span>
         </span>
       </div>
       <div className="overflow-x-auto">
@@ -493,8 +493,8 @@ function Condiciones({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapit
   const p = f.prestamo;
   const filas: [string, string][] = [
     ["Capital", `$${formatearArs(arsCapital)}`],
-    ["Tasa mensual", `${formatearPct(p.tasaMensualPct)}%`],
-    ["Tasa total del plazo", `${formatearPct(p.tasaTotalPct)}%`],
+    ["Tasa del préstamo", `${formatearPct(p.tasaTotalPct)}%`],
+    ["Equivalente mensual", `${formatearPct(p.tasaMensualPct)}%`],
     ["Interés pactado", `$${formatearArs(arsInteres)}`],
     ["Total a cobrar", `$${formatearArs(arsCapital.plus(arsInteres))}`],
     ["Plazo", `${f.diasPlazo} días`],

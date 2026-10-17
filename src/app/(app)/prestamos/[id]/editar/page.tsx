@@ -49,11 +49,11 @@ export default async function EditarPrestamoPage({ params }: PageProps<"/prestam
   if (bloqueo) {
     return (
       <section className="flex flex-col gap-margin">
-        <Link href={volver} className="flex items-center gap-space-xs self-start text-body-md text-on-surface-variant hover:text-primary">
+        <Link href={volver} className="flex items-center gap-space-xs self-start text-body-md text-muted-foreground hover:text-link">
           <ArrowLeft className="size-4" aria-hidden />
           Volver a <span className="font-mono tabular-nums">{numero}</span>
         </Link>
-        <h1 className="text-headline-xl text-on-surface">
+        <h1 className="text-headline-xl text-foreground">
           Editar <span className="font-mono tabular-nums">{numero}</span>
         </h1>
         <Alerta>{bloqueo}</Alerta>

@@ -21,7 +21,7 @@ export function MenuMovil({ children }: { children: ReactNode }) {
       <SheetTrigger render={<Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Abrir menú" />}>
         <Menu aria-hidden />
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 gap-0 bg-surface-container-lowest p-0">
+      <SheetContent side="left" className="w-72 gap-0 bg-card p-0">
         <SheetTitle className="sr-only">Menú</SheetTitle>
         {children}
       </SheetContent>

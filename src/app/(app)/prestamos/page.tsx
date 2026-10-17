@@ -79,13 +79,13 @@ export default async function PrestamosPage({ searchParams }: PageProps<"/presta
     return s ? `/prestamos?${s}` : "/prestamos";
   };
 
-  const th = "px-space-md py-space-sm text-label-caps text-on-surface-variant uppercase whitespace-nowrap";
+  const th = "px-space-md py-space-sm text-label text-muted-foreground whitespace-nowrap";
   const num = "px-space-md py-space-sm text-right font-mono tabular-nums whitespace-nowrap";
 
   return (
     <section className="flex flex-col gap-margin">
       <div className="flex flex-wrap items-center gap-gutter">
-        <h1 className="text-headline-xl text-on-surface">Préstamos</h1>
+        <h1 className="text-headline-xl text-foreground">Préstamos</h1>
         <Link href="/prestamos/nuevo" className={cn(buttonVariants(), "ml-auto gap-space-sm")}>
           <Plus aria-hidden />
           Nuevo préstamo
@@ -108,22 +108,22 @@ export default async function PrestamosPage({ searchParams }: PageProps<"/presta
         />
         <form action="/prestamos" role="search" className="relative ml-auto w-full max-w-sm">
           {filtro !== "todos" && <input type="hidden" name="estado" value={filtro} />}
-          <Search className="pointer-events-none absolute top-1/2 left-space-md size-4 -translate-y-1/2 text-on-surface-variant" aria-hidden />
+          <Search className="pointer-events-none absolute top-1/2 left-space-md size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input
             name="q"
             type="search"
             defaultValue={q}
             placeholder="Filtrar por cliente, DNI o N° de préstamo…"
             aria-label="Filtrar préstamos"
-            className="bg-surface-container-lowest pl-8"
+            className="bg-card pl-8"
           />
         </form>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
-            <thead className="border-b border-outline-variant bg-surface-container-low">
+            <thead className="border-b border-border bg-muted">
               <tr>
                 <th className={cn(th, "text-left")}>N° préstamo</th>
                 <th className={cn(th, "text-left")}>Cliente</th>
@@ -142,7 +142,7 @@ export default async function PrestamosPage({ searchParams }: PageProps<"/presta
               ))}
               {filas.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-space-md py-margin-panel text-center text-body-lg text-on-surface-variant">
+                  <td colSpan={9} className="px-space-md py-margin-panel text-center text-body-lg text-muted-foreground">
                     {todos.length === 0 ? "Todavía no hay préstamos." : "No hay préstamos que coincidan con el filtro."}
                   </td>
                 </tr>
@@ -151,8 +151,8 @@ export default async function PrestamosPage({ searchParams }: PageProps<"/presta
           </table>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-margin gap-y-space-sm border-t border-outline-variant bg-surface-container-low px-space-md py-space-sm text-body-md">
-          <span className="font-medium text-on-surface">
+        <div className="flex flex-wrap items-center gap-x-margin gap-y-space-sm border-t border-border bg-muted px-space-md py-space-sm text-body-md">
+          <span className="font-medium text-foreground">
             {visibles.length === 0 ? (
               "Sin resultados"
             ) : (
@@ -162,14 +162,14 @@ export default async function PrestamosPage({ searchParams }: PageProps<"/presta
               </>
             )}
           </span>
-          <span className="text-on-surface-variant">
+          <span className="text-muted-foreground">
             Total prestado:{" "}
-            <span className="font-mono text-on-surface tabular-nums">{formatearUsdt(totalUsdt)} USDT</span>{" "}
+            <span className="font-mono text-foreground tabular-nums">{formatearUsdt(totalUsdt)} USDT</span>{" "}
             <span className="font-mono tabular-nums">(${formatearArs(totalArs)})</span>
           </span>
-          <span className="text-on-surface-variant">
+          <span className="text-muted-foreground">
             Total recuperado:{" "}
-            <span className="font-mono text-tertiary tabular-nums">
+            <span className="font-mono text-success tabular-nums">
               {formatearUsdt(totalRecuperado)} USDT ({pctRecuperado.toFixed(1).replace(".", ",")}%)
             </span>
           </span>
@@ -208,43 +208,43 @@ function FilaPrestamo({ p, num }: { p: ResumenPrestamo; num: string }) {
   const proxima = p.plan.proxima;
 
   return (
-    <tr className="border-b border-outline-variant/60 transition-colors last:border-b-0 hover:bg-primary/4">
+    <tr className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-primary/4">
       <td className="px-space-md py-space-sm">
-        <Link href={`/prestamos/${p.id}`} className="font-mono text-body-lg font-semibold text-primary tabular-nums hover:underline">
+        <Link href={`/prestamos/${p.id}`} className="font-mono text-body-lg font-semibold text-link tabular-nums hover:underline">
           {numeroPrestamo(p.numero)}
         </Link>
       </td>
       <td className="px-space-md py-space-sm">
         <div className="flex items-center gap-space-md">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-fixed font-mono text-badge-label text-on-primary-fixed-variant">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-badge-label text-link">
             {iniciales(p.cliente.nombre)}
           </span>
           <div className="flex min-w-0 flex-col">
-            <Link href={`/clientes/${p.cliente.id}`} className="truncate text-body-lg font-medium text-on-surface hover:text-primary">
+            <Link href={`/clientes/${p.cliente.id}`} className="truncate text-body-lg font-medium text-foreground hover:text-link">
               {p.cliente.nombre}
             </Link>
             {p.cliente.documento && (
-              <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">{formatearDocumento(p.cliente.documento)}</span>
+              <span className="font-mono text-data-cell text-muted-foreground tabular-nums">{formatearDocumento(p.cliente.documento)}</span>
             )}
           </div>
         </div>
       </td>
       <td className="px-space-md py-space-sm font-mono text-data-cell whitespace-nowrap tabular-nums">{formatearFecha(p.fechaDesembolso)}</td>
       <td className="px-space-md py-space-sm">
-        <span className="rounded-sm bg-surface-container px-space-sm py-space-2xs text-body-sm whitespace-nowrap text-on-surface-variant">
+        <span className="rounded-sm bg-accent px-space-sm py-space-2xs text-body-sm whitespace-nowrap text-muted-foreground">
           {p.dueno}
         </span>
       </td>
       <td className={cn(num, "text-data-cell")}>${formatearArs(p.arsCapital)}</td>
-      <td className={cn(num, "text-data-cell text-on-surface-variant")}>${formatearTc(p.tcEntrada)}</td>
+      <td className={cn(num, "text-data-cell text-muted-foreground")}>${formatearTc(p.tcEntrada)}</td>
       <td className={num}>
-        <span className="text-data-currency-primary text-on-surface">{formatearUsdt(p.usdtPrestado)}</span>{" "}
-        <span className="text-data-currency-secondary text-on-surface-variant">USDT</span>
+        <span className="text-data-currency-primary text-foreground">{formatearUsdt(p.usdtPrestado)}</span>{" "}
+        <span className="text-data-currency-secondary text-usdt">USDT</span>
       </td>
       <td className="min-w-44 px-space-md py-space-sm">
         <div className="flex items-baseline justify-between gap-space-md font-mono text-data-cell tabular-nums">
           <span className={cn("font-semibold", colores.texto)}>{formatearUsdt(p.recuperadoUsdt)} USDT</span>
-          <span className="text-on-surface-variant">{pct.toFixed(0)}%</span>
+          <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
         </div>
         <div className="mt-space-xs">
           <BarraProgreso pct={pct} nivel={p.riesgo} />
@@ -253,7 +253,7 @@ function FilaPrestamo({ p, num }: { p: ResumenPrestamo; num: string }) {
       <td className="px-space-md py-space-sm text-body-md whitespace-nowrap">
         <ProximaCuota p={p} />
         {proxima && p.estado === "vigente" && (
-          <span className="block font-mono text-data-cell text-on-surface-variant tabular-nums">
+          <span className="block font-mono text-data-cell text-muted-foreground tabular-nums">
             {formatearFecha(proxima.vencimiento)}
           </span>
         )}
@@ -265,10 +265,10 @@ function FilaPrestamo({ p, num }: { p: ResumenPrestamo; num: string }) {
 function ProximaCuota({ p }: { p: ResumenPrestamo }) {
   if (p.estado !== "vigente") {
     const texto = { cancelado: "Cancelado", castigado: "Castigado", refinanciado: "Refinanciado", anulado: "Anulado" }[p.estado];
-    return <span className="font-medium text-on-surface-variant">{texto}</span>;
+    return <span className="font-medium text-muted-foreground">{texto}</span>;
   }
   const proxima = p.plan.proxima;
-  if (!proxima) return <span className="font-medium text-tertiary">Pagado</span>;
+  if (!proxima) return <span className="font-medium text-success">Pagado</span>;
   const cuota = (
     <span className="font-mono tabular-nums">
       {proxima.numero}/{p.nCuotas}
@@ -276,11 +276,11 @@ function ProximaCuota({ p }: { p: ResumenPrestamo }) {
   );
   if (p.plan.diasAtraso > 0) {
     return (
-      <span className="flex items-center gap-space-sm font-medium text-on-surface">
+      <span className="flex items-center gap-space-sm font-medium text-foreground">
         <BadgeRiesgo nivel={p.riesgo}>+{p.plan.diasAtraso} días</BadgeRiesgo>
         Cuota {cuota}
       </span>
     );
   }
-  return <span className="font-medium text-on-surface">Cuota {cuota}</span>;
+  return <span className="font-medium text-foreground">Cuota {cuota}</span>;
 }

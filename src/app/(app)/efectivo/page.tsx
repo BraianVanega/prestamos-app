@@ -3,6 +3,7 @@ import { Banknote, CircleCheck, History, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { BotonAnular } from "@/components/app/boton-anular";
 import { FormConversion, type LoteForm } from "@/components/app/form-conversion";
+import { SubnavPlata } from "@/components/app/subnav-plata";
 import { db } from "@/db";
 import { efectivoPendiente, historialConversiones, saldoCajaEfectivo } from "@/db/conversion";
 import { diasEntre } from "@/engine/fechas";
@@ -16,11 +17,11 @@ import { registrarConversion } from "./actions";
 export const metadata: Metadata = { title: "Efectivo · Cierre & Reparto" };
 
 function Etiqueta({ children }: { children: React.ReactNode }) {
-  return <span className="text-label-caps text-on-surface-variant uppercase">{children}</span>;
+  return <span className="text-label text-muted-foreground">{children}</span>;
 }
 
 function Tarjeta({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-col gap-space-sm rounded-lg border border-outline-variant bg-surface-container-lowest p-space-md">{children}</div>;
+  return <div className="flex flex-col gap-space-sm rounded-lg border border-border bg-card p-space-md">{children}</div>;
 }
 
 export default async function EfectivoPage({ searchParams }: PageProps<"/efectivo">) {
@@ -46,18 +47,19 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
     pendiente: p.pendiente.toFixed(2),
   }));
 
-  const th = "px-space-md py-space-sm text-label-caps text-on-surface-variant uppercase whitespace-nowrap";
+  const th = "px-space-md py-space-sm text-label text-muted-foreground whitespace-nowrap";
   const td = "px-space-md py-space-sm font-mono text-data-cell tabular-nums whitespace-nowrap";
 
   return (
     <section className="flex flex-col gap-margin">
+      <SubnavPlata />
       <div className="flex flex-col">
-        <span className="text-label-caps text-primary uppercase">Caja</span>
-        <h1 className="text-headline-xl text-on-surface">Efectivo y conversión</h1>
+        <span className="text-label text-link">Caja</span>
+        <h1 className="text-headline-xl text-foreground">Efectivo y conversión</h1>
       </div>
 
       {recienConvertida && (
-        <p className="flex items-center gap-space-sm rounded-lg border border-riesgo-verde-borde bg-riesgo-verde-bg px-space-md py-space-sm text-body-md text-riesgo-verde-fg">
+        <p className="flex items-center gap-space-sm rounded-lg border border-success/25 bg-success-soft px-space-md py-space-sm text-body-md text-success">
           <CircleCheck className="size-4" aria-hidden />
           Conversión registrada:{" "}
           <span className="font-mono tabular-nums">
@@ -69,11 +71,11 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
       <div className="grid gap-gutter-compact md:grid-cols-3">
         <Tarjeta>
           <Etiqueta>Efectivo sin convertir</Etiqueta>
-          <span className="font-mono text-headline-lg text-on-surface tabular-nums">${formatearArs(total)}</span>
-          <span className="text-body-sm text-on-surface-variant">
+          <span className="font-mono text-headline-lg text-foreground tabular-nums">${formatearArs(total)}</span>
+          <span className="text-body-sm text-muted-foreground">
             {pendientes.length} pago(s) en efectivo
             {!caja.eq(total) && (
-              <span className="text-error">
+              <span className="text-danger">
                 {" "}
                 · la caja según el libro da <span className="font-mono tabular-nums">${formatearArs(caja)}</span>
               </span>
@@ -82,20 +84,20 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
         </Tarjeta>
         <Tarjeta>
           <Etiqueta>Antigüedad del más viejo</Etiqueta>
-          <span className={cn("font-mono text-headline-lg tabular-nums", diasMasViejo > 7 ? "text-error" : "text-on-surface")}>
+          <span className={cn("font-mono text-headline-lg tabular-nums", diasMasViejo > 7 ? "text-danger" : "text-foreground")}>
             {masViejo ? `${diasMasViejo} días` : "—"}
           </span>
-          <span className="text-body-sm text-on-surface-variant">
+          <span className="text-body-sm text-muted-foreground">
             {masViejo ? <>Cobrado el <span className="font-mono tabular-nums">{formatearFecha(masViejo.fecha)}</span></> : "Sin efectivo pendiente"}
           </span>
         </Tarjeta>
         <Tarjeta>
           <Etiqueta>Convertido este mes</Etiqueta>
           <span className="font-mono tabular-nums">
-            <span className="text-headline-lg text-on-surface">{formatearUsdt(usdtMes)}</span>{" "}
-            <span className="text-data-currency-secondary text-on-surface-variant">USDT</span>
+            <span className="text-headline-lg text-foreground">{formatearUsdt(usdtMes)}</span>{" "}
+            <span className="text-data-currency-secondary text-usdt">USDT</span>
           </span>
-          <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">
+          <span className="font-mono text-data-cell text-muted-foreground tabular-nums">
             ${formatearArs(arsMes)} ARS
             {usdtMes.gt(0) && ` · TC prom. ${formatearNumero(arsMes.div(usdtMes), 2)}`}
           </span>
@@ -103,7 +105,7 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
       </div>
 
       {total.gt(0) && (
-        <p className="flex items-center gap-space-sm rounded-lg border border-riesgo-naranja-borde bg-riesgo-naranja-bg px-space-md py-space-sm text-body-md text-riesgo-naranja-fg">
+        <p className="flex items-center gap-space-sm rounded-lg border border-warning/25 bg-warning-soft px-space-md py-space-sm text-body-md text-warning">
           <TriangleAlert className="size-4 shrink-0" aria-hidden />
           <span>
             Hay <span className="font-mono tabular-nums">${formatearArs(total)}</span> en efectivo; el más viejo hace{" "}
@@ -115,20 +117,20 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
 
       <FormConversion key={convertido ? String(convertido) : "nueva"} accion={registrarConversion} lotes={lotes} hoy={hoy} />
 
-      <section className="flex flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest">
-        <div className="flex items-center gap-space-sm border-b border-outline-variant px-margin-panel py-space-md">
-          <History className="size-4 text-primary" aria-hidden />
-          <h2 className="text-headline-sm text-on-surface">Conversiones</h2>
+      <section className="flex flex-col overflow-hidden rounded-lg border border-border bg-card">
+        <div className="flex items-center gap-space-sm border-b border-border px-margin-panel py-space-md">
+          <History className="size-4 text-link" aria-hidden />
+          <h2 className="text-headline-sm text-foreground">Conversiones</h2>
         </div>
         {historial.length === 0 ? (
-          <p className="flex items-center justify-center gap-space-sm px-margin-panel py-margin text-body-md text-on-surface-variant">
+          <p className="flex items-center justify-center gap-space-sm px-margin-panel py-margin text-body-md text-muted-foreground">
             <Banknote className="size-4" aria-hidden />
             Todavía no se convirtió efectivo.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
-              <thead className="border-b border-outline-variant bg-surface-container-low">
+              <thead className="border-b border-border bg-muted">
                 <tr>
                   <th className={cn(th, "text-left")}>Fecha</th>
                   <th className={cn(th, "text-right")}>ARS</th>
@@ -144,17 +146,17 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
               </thead>
               <tbody>
                 {historial.map((c) => (
-                  <tr key={c.id} className={cn("border-b border-outline-variant/60 last:border-b-0", c.anulada && "text-on-surface-variant line-through")}>
+                  <tr key={c.id} className={cn("border-b border-border/60 last:border-b-0", c.anulada && "text-muted-foreground line-through")}>
                     <td className={td}>{formatearFecha(c.fecha)}</td>
                     <td className={cn(td, "text-right")}>${formatearArs(c.ars)}</td>
                     <td className={cn(td, "text-right")}>{formatearNumero(c.tc, Math.max(2, c.tc.decimalPlaces()))}</td>
-                    <td className={cn(td, "text-right font-semibold text-primary")}>{formatearUsdt(c.usdt)}</td>
+                    <td className={cn(td, "text-right font-semibold text-link")}>{formatearUsdt(c.usdt)}</td>
                     <td className={cn(td, "text-right")}>{c.lotes}</td>
-                    <td className="px-space-md py-space-sm text-body-md text-on-surface-variant">{c.notas ?? "—"}</td>
-                    <td className="px-space-md py-space-sm text-body-md text-on-surface">{c.usuario}</td>
+                    <td className="px-space-md py-space-sm text-body-md text-muted-foreground">{c.notas ?? "—"}</td>
+                    <td className="px-space-md py-space-sm text-body-md text-foreground">{c.usuario}</td>
                     <td className="px-space-md py-space-sm text-right">
                       {c.anulada ? (
-                        <span className="text-body-sm text-error">Anulada</span>
+                        <span className="text-body-sm text-danger">Anulada</span>
                       ) : (
                         <BotonAnular
                           entidad="conversiones"

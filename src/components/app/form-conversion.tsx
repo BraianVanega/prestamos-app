@@ -98,7 +98,7 @@ export function FormConversion({ accion, lotes, hoy }: { accion: Accion; lotes: 
   const listo = aConvertir.gt(0) && !!tcOk && !excede && !hayInvalido && diferencia.isZero();
   const pedirConfirmacion = () => (listo ? setConfirmando(true) : formRef.current?.requestSubmit());
 
-  const th = "px-space-md py-space-sm text-label-caps text-on-surface-variant uppercase whitespace-nowrap";
+  const th = "px-space-md py-space-sm text-label text-muted-foreground whitespace-nowrap";
   const td = "px-space-md py-space-sm font-mono text-data-cell tabular-nums whitespace-nowrap";
 
   return (
@@ -139,8 +139,8 @@ export function FormConversion({ accion, lotes, hoy }: { accion: Accion; lotes: 
                 <EntradaNumero id="tc" valor={v.tc} onChange={set("tc")} error={!!err("tc")} />
               </Campo>
               <div className="flex flex-col gap-space-xs">
-                <span className="text-body-md font-medium text-on-surface">USDT resultante</span>
-                <span className="flex h-8 items-center justify-end rounded-lg bg-primary-fixed px-space-md font-mono text-data-currency-primary text-on-primary-fixed-variant tabular-nums">
+                <span className="text-body-md font-medium text-foreground">USDT resultante</span>
+                <span className="flex h-8 items-center justify-end rounded-lg bg-muted px-space-md font-mono text-data-currency-primary text-link tabular-nums">
                   {usdt && aConvertir.gt(0) ? `${formatearUsdt(usdt)} USDT` : "—"}
                 </span>
               </div>
@@ -167,10 +167,10 @@ export function FormConversion({ accion, lotes, hoy }: { accion: Accion; lotes: 
           </Panel>
         </fieldset>
 
-        <aside className="flex min-w-0 flex-col gap-space-md rounded-lg border border-outline-variant bg-surface-container-lowest p-margin-panel xl:sticky xl:top-16">
+        <aside className="flex min-w-0 flex-col gap-space-md rounded-lg border border-border bg-card p-margin-panel xl:sticky xl:top-16">
           <div className="flex items-center gap-space-sm">
-            <Scale className="size-4 text-primary" aria-hidden />
-            <h2 className="text-label-caps text-on-surface uppercase">Conciliación</h2>
+            <Scale className="size-4 text-link" aria-hidden />
+            <h2 className="text-label text-foreground">Conciliación</h2>
           </div>
           {(
             [
@@ -180,51 +180,51 @@ export function FormConversion({ accion, lotes, hoy }: { accion: Accion; lotes: 
             ] as const
           ).map(([etiqueta, x]) => (
             <div key={etiqueta} className="flex items-baseline justify-between gap-space-md">
-              <span className="text-label-caps text-on-surface-variant uppercase">{etiqueta}</span>
+              <span className="text-label text-muted-foreground">{etiqueta}</span>
               <span className="flex flex-col items-end font-mono tabular-nums">
                 <span className="text-data-currency-primary">${formatearArs(x)}</span>
                 {usdtDe(x) && etiqueta !== "Queda sin convertir" && (
-                  <span className="text-data-currency-secondary text-on-surface-variant">{formatearUsdt(usdtDe(x)!)} USDT</span>
+                  <span className="text-data-currency-secondary text-muted-foreground">{formatearUsdt(usdtDe(x)!)} USDT</span>
                 )}
               </span>
             </div>
           ))}
-          <div className="border-t border-outline-variant pt-space-md">
+          <div className="border-t border-border pt-space-md">
             {diferencia.isZero() ? (
-              <p className="flex items-center gap-space-sm rounded-lg bg-riesgo-verde-bg px-space-md py-space-sm font-mono text-badge-label text-riesgo-verde-fg uppercase">
+              <p className="flex items-center gap-space-sm rounded-lg bg-success-soft px-space-md py-space-sm font-mono text-badge-label text-success">
                 <CircleCheck className="size-4" aria-hidden />
                 $0,00 de diferencia · cuadrado
               </p>
             ) : (
-              <p className="rounded-lg border border-riesgo-rojo-borde bg-riesgo-rojo-bg px-space-md py-space-sm font-mono text-data-cell text-riesgo-rojo-fg tabular-nums">
+              <p className="rounded-lg border border-danger/25 bg-danger-soft px-space-md py-space-sm font-mono text-data-cell text-danger tabular-nums">
                 {diferencia.gt(0) ? `Faltan asignar $${formatearArs(diferencia)}` : `Asignaste $${formatearArs(diferencia.abs())} de más`}
               </p>
             )}
           </div>
-          <p className="text-body-sm text-on-surface-variant">
+          <p className="text-body-sm text-muted-foreground">
             Recién al convertir se realiza el cobro en USDT: cada lote recupera primero el costo de sus préstamos y lo que lo supera es ganancia.
           </p>
         </aside>
       </div>
 
-      <section className="flex flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest">
-        <div className="flex flex-wrap items-center gap-margin border-b border-outline-variant px-margin-panel py-space-md">
+      <section className="flex flex-col overflow-hidden rounded-lg border border-border bg-card">
+        <div className="flex flex-wrap items-center gap-margin border-b border-border px-margin-panel py-space-md">
           <div className="flex min-w-0 flex-col">
-            <h2 className="text-headline-sm text-on-surface">Efectivo sin convertir</h2>
-            <p className="text-body-md text-on-surface-variant">Lotes sugeridos por antigüedad (el más viejo primero). Podés elegir otros a mano.</p>
+            <h2 className="text-headline-sm text-foreground">Efectivo sin convertir</h2>
+            <p className="text-body-md text-muted-foreground">Lotes sugeridos por antigüedad (el más viejo primero). Podés elegir otros a mano.</p>
           </div>
           <Button type="button" variant="secondary" className="ml-auto gap-space-sm" onClick={() => setManual(null)} disabled={!manual}>
             <Sparkles aria-hidden />
             Aplicar FIFO
           </Button>
         </div>
-        {err("lotes") && <p className="px-margin-panel pt-space-sm text-body-sm text-error">{err("lotes")}</p>}
+        {err("lotes") && <p className="px-margin-panel pt-space-sm text-body-sm text-danger">{err("lotes")}</p>}
         {lotes.length === 0 ? (
-          <p className="px-margin-panel py-margin text-center text-body-md text-on-surface-variant">No hay efectivo pendiente de convertir.</p>
+          <p className="px-margin-panel py-margin text-center text-body-md text-muted-foreground">No hay efectivo pendiente de convertir.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
-              <thead className="border-b border-outline-variant bg-surface-container-low">
+              <thead className="border-b border-border bg-muted">
                 <tr>
                   <th className={cn(th, "text-left")}>Cobrado</th>
                   <th className={cn(th, "text-right")}>Antigüedad</th>
@@ -242,12 +242,12 @@ export function FormConversion({ accion, lotes, hoy }: { accion: Accion; lotes: 
                   const m = montos.get(l.pagoId) ?? null;
                   const texto = manual ? (manual[l.pagoId] ?? "") : aTexto(fifo.get(l.pagoId)!);
                   return (
-                    <tr key={l.pagoId} className="border-b border-outline-variant/60 last:border-b-0">
+                    <tr key={l.pagoId} className="border-b border-border/60 last:border-b-0">
                       <td className={td}>{formatearFecha(l.fecha)}</td>
-                      <td className={cn(td, "text-right", dias > 7 ? "text-error" : "text-on-surface-variant")}>{dias} d</td>
-                      <td className="px-space-md py-space-sm text-body-md text-on-surface">{l.cliente}</td>
-                      <td className={cn(td, "text-primary")}>{l.destino}</td>
-                      <td className={cn(td, "text-right text-on-surface-variant")}>${formatearArs(l.ars)}</td>
+                      <td className={cn(td, "text-right", dias > 7 ? "text-danger" : "text-muted-foreground")}>{dias} d</td>
+                      <td className="px-space-md py-space-sm text-body-md text-foreground">{l.cliente}</td>
+                      <td className={cn(td, "text-link")}>{l.destino}</td>
+                      <td className={cn(td, "text-right text-muted-foreground")}>${formatearArs(l.ars)}</td>
                       <td className={cn(td, "text-right font-semibold")}>${formatearArs(l.pendiente)}</td>
                       <td className="px-space-md py-space-xs">
                         <Input
@@ -262,14 +262,14 @@ export function FormConversion({ accion, lotes, hoy }: { accion: Accion; lotes: 
                           className="ml-auto w-36 text-right font-mono tabular-nums"
                         />
                       </td>
-                      <td className={cn(td, "text-right text-primary")}>{m && m.gt(0) && usdtDe(m) ? formatearUsdt(usdtDe(m)!) : "—"}</td>
+                      <td className={cn(td, "text-right text-link")}>{m && m.gt(0) && usdtDe(m) ? formatearUsdt(usdtDe(m)!) : "—"}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot className="border-t border-outline-variant bg-surface-container-low">
+              <tfoot className="border-t border-border bg-muted">
                 <tr>
-                  <td colSpan={5} className="px-space-md py-space-sm text-body-md font-medium text-on-surface">
+                  <td colSpan={5} className="px-space-md py-space-sm text-body-md font-medium text-foreground">
                     Total sin convertir
                   </td>
                   <td className={cn(td, "text-right font-semibold")}>${formatearArs(totalPendiente)}</td>
@@ -288,16 +288,16 @@ export function FormConversion({ accion, lotes, hoy }: { accion: Accion; lotes: 
             <AlertDialogTitle>Confirmá la conversión</AlertDialogTitle>
             <AlertDialogDescription render={<div />}>
               <dl className="grid grid-cols-[auto_1fr] gap-x-margin gap-y-space-xs text-body-md">
-                <dt className="text-on-surface-variant">Convertís</dt>
-                <dd className="font-mono text-on-surface tabular-nums">
+                <dt className="text-muted-foreground">Convertís</dt>
+                <dd className="font-mono text-foreground tabular-nums">
                   ${formatearArs(aConvertir)} a TC {v.tc} = {usdt ? formatearUsdt(usdt) : "—"} USDT
                 </dd>
-                <dt className="text-on-surface-variant">Fecha</dt>
-                <dd className="font-mono text-on-surface tabular-nums">{formatearFecha(fecha)}</dd>
-                <dt className="text-on-surface-variant">Lotes</dt>
-                <dd className="font-mono text-on-surface tabular-nums">{[...montos.values()].filter((m) => m?.gt(0)).length} pago(s) en efectivo</dd>
+                <dt className="text-muted-foreground">Fecha</dt>
+                <dd className="font-mono text-foreground tabular-nums">{formatearFecha(fecha)}</dd>
+                <dt className="text-muted-foreground">Lotes</dt>
+                <dd className="font-mono text-foreground tabular-nums">{[...montos.values()].filter((m) => m?.gt(0)).length} pago(s) en efectivo</dd>
               </dl>
-              <p className="mt-space-md text-body-sm text-on-surface-variant">La conversión no se edita: un error se corrige anulándola.</p>
+              <p className="mt-space-md text-body-sm text-muted-foreground">La conversión no se edita: un error se corrige anulándola.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

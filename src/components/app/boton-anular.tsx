@@ -50,7 +50,7 @@ export function BotonAnular({
 
   return (
     <AlertDialog open={abierto} onOpenChange={setAbierto}>
-      <AlertDialogTrigger render={<Button variant="ghost" size="xs" className="gap-space-xs text-error hover:text-error" />}>
+      <AlertDialogTrigger render={<Button variant="ghost" size="xs" className="gap-space-xs text-danger hover:text-danger" />}>
         <Ban aria-hidden />
         Anular
       </AlertDialogTrigger>
@@ -59,8 +59,8 @@ export function BotonAnular({
           <AlertDialogHeader>
             <AlertDialogTitle>Anular {titulo}</AlertDialogTitle>
             <AlertDialogDescription render={<div />} className="flex flex-col gap-space-xs">
-              <span className="text-body-md text-on-surface">{detalle}</span>
-              <span className="text-body-sm text-on-surface-variant">
+              <span className="text-body-md text-foreground">{detalle}</span>
+              <span className="text-body-sm text-muted-foreground">
                 No se borra: queda registrada la anulación con su motivo y se revierten sus movimientos.
                 {aviso && ` ${aviso}`}
               </span>

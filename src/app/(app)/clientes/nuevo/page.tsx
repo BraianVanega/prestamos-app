@@ -9,12 +9,12 @@ export default function NuevoClientePage() {
   return (
     <section className="flex max-w-3xl flex-col gap-margin">
       <div className="flex flex-col gap-space-xs">
-        <Link href="/clientes" className="text-body-md text-on-surface-variant hover:text-primary">
+        <Link href="/clientes" className="text-body-md text-muted-foreground hover:text-link">
           ← Clientes
         </Link>
-        <h1 className="text-headline-xl text-on-surface">Nuevo cliente</h1>
+        <h1 className="text-headline-xl text-foreground">Nuevo cliente</h1>
       </div>
-      <div className="rounded-lg border border-outline-variant bg-surface-container-lowest p-margin-panel">
+      <div className="rounded-lg border border-border bg-card p-margin-panel">
         <FormCliente accion={crearCliente} iniciales={{ estado: "activo" }} textoGuardar="Crear cliente" cancelarHref="/clientes" enfocarNombre />
       </div>
     </section>

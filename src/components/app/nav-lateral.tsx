@@ -1,48 +1,30 @@
 "use client";
 
-import { Ban, Banknote, Contact, Handshake, Landmark, LayoutDashboard, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SECCIONES, seccionActiva } from "@/components/app/secciones";
 import { cn } from "@/lib/utils";
 
-const SECCIONES = [
-  { href: "/", etiqueta: "Overview", icono: LayoutDashboard },
-  { href: "/prestamos", etiqueta: "Préstamos", icono: Landmark },
-  { href: "/clientes", etiqueta: "Clientes", icono: Contact },
-  { href: "/pagos", etiqueta: "Pagos", icono: Banknote },
-  { href: "/efectivo", etiqueta: "Efectivo", icono: Wallet },
-  { href: "/socios", etiqueta: "Socios", icono: Users },
-  { href: "/terceros", etiqueta: "Terceros", icono: Handshake },
-  { href: "/anulaciones", etiqueta: "Anulaciones", icono: Ban },
-] as const;
-
-const estaActiva = (href: string, pathname: string) =>
-  href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-
 export function NavLateral() {
-  const pathname = usePathname();
+  const activa = seccionActiva(usePathname());
 
   return (
-    <nav aria-label="Secciones" className="flex flex-col gap-space-2xs px-gutter-compact">
-      {SECCIONES.map(({ href, etiqueta, icono: Icono }) => {
-        const activa = estaActiva(href, pathname);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={activa ? "page" : undefined}
-            className={cn(
-              "flex h-9 items-center gap-space-md rounded-lg px-space-md text-body-lg transition-colors",
-              activa
-                ? "bg-primary-container font-semibold text-on-primary"
-                : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface",
-            )}
-          >
-            <Icono className="size-4 shrink-0" aria-hidden />
-            {etiqueta}
-          </Link>
-        );
-      })}
+    <nav aria-label="Secciones" className="flex flex-col gap-space-xs px-space-md">
+      {SECCIONES.map(({ clave, href, etiqueta }) => (
+        <Link
+          key={clave}
+          href={href}
+          aria-current={clave === activa ? "page" : undefined}
+          className={cn(
+            "flex h-10 items-center rounded-lg px-space-md text-body-md transition-colors",
+            clave === activa
+              ? "bg-muted font-semibold text-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          {etiqueta}
+        </Link>
+      ))}
     </nav>
   );
 }

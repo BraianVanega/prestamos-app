@@ -3,14 +3,14 @@ import { ESTADOS_CLIENTE, type EstadoCliente } from "@/lib/clientes";
 import { cn } from "@/lib/utils";
 
 const ESTILOS: Record<EstadoCliente, string> = {
-  activo: "border-riesgo-verde-borde bg-riesgo-verde-bg text-riesgo-verde-fg",
-  bloqueado: "border-riesgo-rojo-borde bg-riesgo-rojo-bg text-riesgo-rojo-fg",
-  inactivo: "border-outline-variant bg-surface-container-low text-on-surface-variant",
+  activo: "border-success/25 bg-success-soft text-success",
+  bloqueado: "border-danger/25 bg-danger-soft text-danger",
+  inactivo: "border-border bg-muted text-muted-foreground",
 };
 
 export function BadgeEstadoCliente({ estado }: { estado: EstadoCliente }) {
   return (
-    <Badge variant="outline" className={cn("rounded-full font-mono text-badge-label uppercase", ESTILOS[estado])}>
+    <Badge variant="outline" className={cn("rounded-full font-mono text-badge-label", ESTILOS[estado])}>
       {ESTADOS_CLIENTE[estado]}
     </Badge>
   );

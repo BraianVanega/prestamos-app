@@ -2,40 +2,20 @@ import Decimal from "decimal.js";
 import type { NivelRiesgo } from "@/engine/estado-prestamo";
 import { cn } from "@/lib/utils";
 
-/** Clases de DESIGN.md (Risk Badges) por nivel. */
+/** Clases del semáforo de DESIGN.md (risk-1…5) por nivel. */
 export const COLORES_RIESGO: Record<NivelRiesgo, { badge: string; texto: string; barra: string }> = {
-  verde: {
-    badge: "border-riesgo-verde-borde bg-riesgo-verde-bg text-riesgo-verde-fg",
-    texto: "text-tertiary",
-    barra: "bg-tertiary",
-  },
-  amarillo: {
-    badge: "border-riesgo-amarillo-borde bg-riesgo-amarillo-bg text-riesgo-amarillo-fg",
-    texto: "text-riesgo-amarillo-fg",
-    barra: "bg-riesgo-amarillo-fg",
-  },
-  naranja: {
-    badge: "border-riesgo-naranja-borde bg-riesgo-naranja-bg text-riesgo-naranja-fg",
-    texto: "text-riesgo-naranja-fg",
-    barra: "bg-riesgo-naranja-fg",
-  },
-  rojo: {
-    badge: "border-riesgo-rojo-borde bg-riesgo-rojo-bg text-riesgo-rojo-fg",
-    texto: "text-riesgo-rojo-fg",
-    barra: "bg-riesgo-rojo-fg",
-  },
-  negro: {
-    badge: "border-riesgo-negro-borde bg-riesgo-negro-bg text-riesgo-negro-fg ring-1 ring-inset ring-riesgo-negro-anillo",
-    texto: "text-on-surface",
-    barra: "bg-riesgo-negro-bg",
-  },
+  verde: { badge: "bg-risk-1 text-risk-1-foreground", texto: "text-success", barra: "bg-risk-1" },
+  amarillo: { badge: "bg-risk-2 text-risk-2-foreground", texto: "text-warning", barra: "bg-risk-2" },
+  naranja: { badge: "bg-risk-3 text-risk-3-foreground", texto: "text-warning", barra: "bg-risk-3" },
+  rojo: { badge: "bg-risk-4 text-risk-4-foreground", texto: "text-danger", barra: "bg-risk-4" },
+  negro: { badge: "bg-risk-5 text-risk-5-foreground", texto: "text-foreground", barra: "bg-risk-5" },
 };
 
 export function BadgeRiesgo({ nivel, children }: { nivel: NivelRiesgo; children: React.ReactNode }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-space-sm py-space-2xs font-mono text-badge-label uppercase",
+        "inline-flex items-center rounded-full px-space-md py-space-2xs font-mono text-badge-label tabular-nums",
         COLORES_RIESGO[nivel].badge,
       )}
     >
@@ -48,7 +28,7 @@ export function BadgeRiesgo({ nivel, children }: { nivel: NivelRiesgo; children:
 export function BarraProgreso({ pct, nivel }: { pct: Decimal; nivel: NivelRiesgo }) {
   const ancho = Decimal.min(Decimal.max(pct, 0), 100).toDecimalPlaces(2).toString();
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container" aria-hidden>
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden>
       <div className={cn("h-full rounded-full", COLORES_RIESGO[nivel].barra)} style={{ width: `${ancho}%` }} />
     </div>
   );

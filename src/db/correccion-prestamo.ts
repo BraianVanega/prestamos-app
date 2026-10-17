@@ -248,9 +248,14 @@ export async function corregirPrestamo(
     // Solo saldo a favor aplicado: se va con el pago de origen (también en el alcance).
   }
 
-  // 2. Anular el préstamo y dar de alta el corregido.
+  // 2. Anular el préstamo y dar de alta la versión editada, con el mismo N°.
   await anularPrestamo(tx, { id: d.id, motivo: d.motivo }, anulacion);
-  const nuevo = await insertarPrestamo(tx, d.datos, { usuarioId: ctx.usuarioId, sociedadId: ctx.sociedadId, corrigeAId: d.id });
+  const nuevo = await insertarPrestamo(tx, d.datos, {
+    usuarioId: ctx.usuarioId,
+    sociedadId: ctx.sociedadId,
+    corrigeAId: d.id,
+    numero: viejo.numero,
+  });
   await pasarMorasPerdonadas(tx, { viejo, nuevoId: nuevo.id, usuarioId: ctx.usuarioId });
 
   // 3. Volver a registrar todo en el mismo orden.

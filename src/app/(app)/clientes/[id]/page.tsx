@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -32,7 +32,8 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
   const susPrestamos = await db
     .select({ id: prestamos.id, numero: prestamos.numero, estado: prestamos.estado, fecha: prestamos.fechaDesembolso })
     .from(prestamos)
-    .where(eq(prestamos.clienteId, id))
+    // Sin versiones anteriores de préstamos editados.
+    .where(and(eq(prestamos.clienteId, id), ne(prestamos.estado, "anulado")))
     .orderBy(desc(prestamos.fechaDesembolso));
 
   return (

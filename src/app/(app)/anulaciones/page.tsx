@@ -4,6 +4,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { historialAnulaciones, type AnulacionHistorial } from "@/db/anulaciones";
 import { formatearFechaHora } from "@/lib/formato";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Anulaciones · Cierre & Reparto" };
 
@@ -12,7 +13,7 @@ const ENTIDADES: Record<AnulacionHistorial["entidad"], string> = {
   conversiones: "Conversión",
   aportes: "Aporte",
   cargos: "Cargo",
-  prestamos: "Préstamo",
+  prestamos: "Edición",
   pagosTercero: "Pago a tercero",
 };
 
@@ -22,7 +23,7 @@ const DONDE = [
   ["Conversiones", "desde Efectivo, en el historial de conversiones."],
   ["Aportes", "desde Socios, en el historial de aportes."],
   ["Pagos a terceros", "desde la ficha del tercero, en el historial de pagos."],
-  ["Préstamos", "con Editar en la ficha del préstamo: se anula y se da de alta con los cambios; sus cobros se reimputan."],
+  ["Préstamos", "con Editar en la ficha del préstamo: conserva su N° y sus cobros; qué cambió queda en \"Cambios\" de la ficha."],
 ] as const;
 
 export default async function AnulacionesPage() {
@@ -81,7 +82,12 @@ export default async function AnulacionesPage() {
                   <tr key={a.id} className="border-b border-border/60 last:border-b-0">
                     <td className="px-space-md py-space-sm font-mono text-data-cell whitespace-nowrap tabular-nums">{formatearFechaHora(a.en)}</td>
                     <td className="px-space-md py-space-sm">
-                      <span className="rounded-full border border-danger/25 bg-danger-soft px-space-sm py-space-2xs text-badge-label text-danger">
+                      <span
+                        className={cn(
+                          "rounded-full border px-space-sm py-space-2xs text-badge-label whitespace-nowrap",
+                          a.entidad === "prestamos" ? "border-border bg-muted text-foreground" : "border-danger/25 bg-danger-soft text-danger",
+                        )}
+                      >
                         {ENTIDADES[a.entidad]}
                       </span>
                     </td>

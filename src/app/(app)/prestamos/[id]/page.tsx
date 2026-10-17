@@ -406,7 +406,9 @@ function Cargos({ f }: { f: FichaPrestamo }) {
         <div className="flex flex-col">
           <h2 className="text-headline-sm text-foreground">Mora, cargos y descuentos</h2>
           <span className="text-body-sm text-muted-foreground">
-            Mora del {formatearPct(f.prestamo.moraPct)}% sobre el capital impago, pasados {f.prestamo.diasGracia} días de gracia
+            {new Decimal(f.prestamo.moraPct).isZero()
+              ? "Sin recargo por atraso"
+              : `Mora del ${formatearPct(f.prestamo.moraPct)}% sobre el capital impago, pasados ${f.prestamo.diasGracia} días de gracia`}
           </span>
         </div>
       </div>
@@ -498,7 +500,7 @@ function Condiciones({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapit
     ["Interés pactado", `$${formatearArs(arsInteres)}`],
     ["Total a cobrar", `$${formatearArs(arsCapital.plus(arsInteres))}`],
     ["Plazo", `${f.diasPlazo} días`],
-    ["Mora / gracia", `${formatearPct(p.moraPct)}% / ${p.diasGracia} días`],
+    ["Mora / gracia", new Decimal(p.moraPct).isZero() ? "Sin recargo" : `${formatearPct(p.moraPct)}% / ${p.diasGracia} días`],
   ];
   return (
     <Panel className="p-space-md">

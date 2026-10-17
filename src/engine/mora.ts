@@ -2,9 +2,12 @@ import Decimal from "decimal.js";
 import { sumarDias, type Fecha } from "./fechas";
 import { redondearArs } from "./redondeo";
 
-/** Valores sugeridos en el alta; cada préstamo guarda los suyos (`mora_pct`, `dias_gracia`). */
-export const MORA_PCT_SUGERIDA = "20";
-export const DIAS_GRACIA_SUGERIDOS = 5;
+/**
+ * Valores sugeridos en el alta: sin recargo. Cada préstamo guarda los suyos
+ * (`mora_pct`, `dias_gracia`); con mora 0% nunca se carga recargo.
+ */
+export const MORA_PCT_SUGERIDA = "0";
+export const DIAS_GRACIA_SUGERIDOS = 0;
 
 export interface CuotaParaMora {
   cuotaId: string;

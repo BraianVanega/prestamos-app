@@ -91,7 +91,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
   return (
     <section className="flex flex-col gap-margin">
       <div className="flex items-center justify-between gap-margin">
-        <h1 className="text-headline-xl text-on-surface">Clientes</h1>
+        <h1 className="text-headline-xl text-foreground">Clientes</h1>
         <Link href="/clientes/nuevo" className={cn(buttonVariants(), "gap-space-sm")}>
           <Plus aria-hidden />
           Nuevo cliente
@@ -112,7 +112,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
         <form action="/clientes" role="search" className="relative ml-auto w-full max-w-sm">
           {estado && <input type="hidden" name="estado" value={estado} />}
           <Search
-            className="pointer-events-none absolute top-1/2 left-space-md size-4 -translate-y-1/2 text-on-surface-variant"
+            className="pointer-events-none absolute top-1/2 left-space-md size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <Input
@@ -121,28 +121,28 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
             defaultValue={q}
             placeholder="Filtrar por nombre, DNI/CUIT o teléfono…"
             aria-label="Filtrar clientes"
-            className="bg-surface-container-lowest pl-8"
+            className="bg-card pl-8"
           />
         </form>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <Table>
-          <TableHeader className="bg-surface-container-low">
+          <TableHeader className="bg-muted">
             <TableRow>
-              <TableHead className="text-label-caps text-on-surface-variant uppercase">Cliente</TableHead>
-              <TableHead className="text-label-caps text-on-surface-variant uppercase">DNI / CUIT</TableHead>
-              <TableHead className="text-label-caps text-on-surface-variant uppercase">Teléfono</TableHead>
-              <TableHead className="text-label-caps text-on-surface-variant uppercase">Estado</TableHead>
-              <TableHead className="text-right text-label-caps text-on-surface-variant uppercase">Préstamos vigentes</TableHead>
-              <TableHead className="text-right text-label-caps text-on-surface-variant uppercase">Alta</TableHead>
+              <TableHead className="text-label text-muted-foreground">Cliente</TableHead>
+              <TableHead className="text-label text-muted-foreground">DNI / CUIT</TableHead>
+              <TableHead className="text-label text-muted-foreground">Teléfono</TableHead>
+              <TableHead className="text-label text-muted-foreground">Estado</TableHead>
+              <TableHead className="text-right text-label text-muted-foreground">Préstamos vigentes</TableHead>
+              <TableHead className="text-right text-label text-muted-foreground">Alta</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filas.map((c) => (
               <TableRow key={c.id} className="h-10">
                 <TableCell>
-                  <Link href={`/clientes/${c.id}`} className="font-medium text-on-surface hover:text-primary hover:underline">
+                  <Link href={`/clientes/${c.id}`} className="font-medium text-foreground hover:text-link hover:underline">
                     {c.nombre}
                   </Link>
                 </TableCell>
@@ -157,7 +157,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
             ))}
             {filas.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-margin-panel text-center text-body-lg text-on-surface-variant">
+                <TableCell colSpan={6} className="py-margin-panel text-center text-body-lg text-muted-foreground">
                   {q || estado ? "No hay clientes que coincidan con el filtro." : "Todavía no cargaste clientes."}
                 </TableCell>
               </TableRow>
@@ -167,7 +167,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
       </div>
 
       {filas.length === LIMITE && (
-        <p className="text-body-sm text-on-surface-variant">
+        <p className="text-body-sm text-muted-foreground">
           Se muestran los primeros <span className="font-mono tabular-nums">{LIMITE}</span>. Usá el filtro para encontrar al resto.
         </p>
       )}

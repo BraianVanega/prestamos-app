@@ -86,7 +86,7 @@ export function FormCliente({
       </fieldset>
 
       {estado.error && (
-        <p role="alert" className="rounded-lg border border-riesgo-rojo-borde bg-riesgo-rojo-bg px-space-md py-space-sm text-body-md text-riesgo-rojo-fg">
+        <p role="alert" className="rounded-lg border border-danger/25 bg-danger-soft px-space-md py-space-sm text-body-md text-danger">
           {estado.error}
         </p>
       )}
@@ -123,11 +123,11 @@ function Campo({
       <Label htmlFor={id}>{etiqueta}</Label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="text-body-sm text-error">
+        <p id={`${id}-error`} className="text-body-sm text-danger">
           {error}
         </p>
       ) : (
-        ayuda && <p className="text-body-sm text-on-surface-variant">{ayuda}</p>
+        ayuda && <p className="text-body-sm text-muted-foreground">{ayuda}</p>
       )}
     </div>
   );

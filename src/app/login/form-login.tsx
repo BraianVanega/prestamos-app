@@ -30,7 +30,7 @@ export function FormLogin({ errorInicial }: { errorInicial?: string }) {
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </div>
       {estado.error && (
-        <p role="alert" className="rounded-lg border border-riesgo-rojo-borde bg-riesgo-rojo-bg px-space-md py-space-sm text-body-md text-riesgo-rojo-fg">
+        <p role="alert" className="rounded-lg border border-danger/25 bg-danger-soft px-space-md py-space-sm text-body-md text-danger">
           {estado.error}
         </p>
       )}

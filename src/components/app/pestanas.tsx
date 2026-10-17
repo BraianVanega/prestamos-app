@@ -8,21 +8,23 @@ export interface Pestana {
   activa: boolean;
 }
 
-/** Pestañas de filtro tipo "pill" con conteo, como en design/listado.png. */
+/** Filtros con conteo (DESIGN.md › Listado): el activo relleno, el resto con borde. */
 export function Pestanas({ items, etiqueta }: { items: Pestana[]; etiqueta: string }) {
   return (
-    <nav aria-label={etiqueta} className="flex flex-wrap gap-space-xs">
+    <nav aria-label={etiqueta} className="flex flex-wrap gap-space-sm">
       {items.map((p) => (
         <Link
           key={p.etiqueta}
           href={p.href}
           aria-current={p.activa ? "page" : undefined}
           className={cn(
-            "rounded-full px-space-md py-space-xs text-body-md font-medium transition-colors",
-            p.activa ? "bg-primary-container text-on-primary" : "bg-surface-container-low text-on-surface hover:bg-surface-container",
+            "rounded-lg border px-space-md py-space-sm text-body-sm transition-colors",
+            p.activa
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-input bg-card text-foreground hover:bg-muted",
           )}
         >
-          {p.etiqueta} <span className="font-mono tabular-nums">({p.cantidad})</span>
+          {p.etiqueta} <span className="font-mono tabular-nums">{p.cantidad}</span>
         </Link>
       ))}
     </nav>

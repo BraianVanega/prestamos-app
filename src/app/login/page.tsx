@@ -13,11 +13,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const errorInicial = typeof error === "string" ? ERRORES[error] : undefined;
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-surface p-margin">
+    <main className="flex flex-1 items-center justify-center bg-background p-margin">
       <Card className="w-full max-w-sm rounded-lg">
         <CardHeader>
           <CardTitle className="text-headline-lg">Cierre &amp; Reparto</CardTitle>
-          <CardDescription className="text-body-md text-on-surface-variant">
+          <CardDescription className="text-body-md text-muted-foreground">
             Ingresá con tu mail y contraseña.
           </CardDescription>
         </CardHeader>

@@ -38,32 +38,32 @@ const TIPOS_TX: Record<string, string> = {
 };
 
 const ETIQUETA_RIESGO: Record<NivelRiesgo, string> = { verde: "Verde", amarillo: "Amarillo", naranja: "Naranja", rojo: "Rojo", negro: "Negro" };
-const COLOR_SOCIO = ["bg-primary", "bg-tertiary"] as const;
+const COLOR_SOCIO = ["bg-primary", "bg-success"] as const;
 
 function Etiqueta({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn("text-label-caps text-on-surface-variant uppercase", className)}>{children}</span>;
+  return <span className={cn("text-label text-muted-foreground", className)}>{children}</span>;
 }
 
 function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <section className={cn("rounded-lg border border-outline-variant bg-surface-container-lowest", className)}>{children}</section>;
+  return <section className={cn("rounded-lg border border-border bg-card", className)}>{children}</section>;
 }
 
 function Usdt({ valor, className }: { valor: Decimal; className?: string }) {
   return (
     <span className="font-mono tabular-nums">
-      <span className={cn("text-headline-lg", className ?? "text-on-surface")}>{formatearUsdt(valor)}</span>{" "}
-      <span className="text-data-currency-secondary text-primary">USDT</span>
+      <span className={cn("text-headline-lg", className ?? "text-foreground")}>{formatearUsdt(valor)}</span>{" "}
+      <span className="text-data-currency-secondary text-usdt">USDT</span>
     </span>
   );
 }
 
 function Encabezado({ icono, titulo, subtitulo, extra }: { icono: React.ReactNode; titulo: string; subtitulo?: string; extra?: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-space-md border-b border-outline-variant px-space-md py-space-md">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-container text-on-primary [&_svg]:size-5">{icono}</span>
+    <div className="flex items-start gap-space-md border-b border-border px-space-md py-space-md">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground [&_svg]:size-5">{icono}</span>
       <div className="flex min-w-0 flex-col">
-        <h2 className="text-headline-sm text-on-surface">{titulo}</h2>
-        {subtitulo && <span className="text-body-sm text-on-surface-variant">{subtitulo}</span>}
+        <h2 className="text-headline-sm text-foreground">{titulo}</h2>
+        {subtitulo && <span className="text-body-sm text-muted-foreground">{subtitulo}</span>}
       </div>
       {extra && <div className="ml-auto shrink-0">{extra}</div>}
     </div>
@@ -98,18 +98,18 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
 
 function Franja({ o }: { o: Overview }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-margin gap-y-space-sm rounded-lg border border-outline-variant bg-surface-container-lowest px-space-md py-space-sm text-body-md text-on-surface-variant">
+    <div className="flex flex-wrap items-center gap-x-margin gap-y-space-sm rounded-lg border border-border bg-card px-space-md py-space-sm text-body-md text-muted-foreground">
       <span className="flex items-center gap-space-sm">
-        <span className="size-2 rounded-full bg-tertiary" aria-hidden />
+        <span className="size-2 rounded-full bg-success" aria-hidden />
         <Etiqueta>Período</Etiqueta>
-        <span className="font-medium text-on-surface">{capitalizar(NOMBRE_MES.format(aFecha(o.hoy.slice(0, 7))).replace(" de ", " "))}</span>
+        <span className="font-medium text-foreground">{capitalizar(NOMBRE_MES.format(aFecha(o.hoy.slice(0, 7))).replace(" de ", " "))}</span>
       </span>
       <span className="flex items-center gap-space-sm">
         <ArrowLeftRight className="size-4" aria-hidden />
         Último TC:
         {o.ultimoTc ? (
           <span>
-            <span className="font-mono text-on-surface tabular-nums">${formatearTc(o.ultimoTc.tc)} ARS/USDT</span>{" "}
+            <span className="font-mono text-foreground tabular-nums">${formatearTc(o.ultimoTc.tc)} ARS/USDT</span>{" "}
             <span className="text-body-sm">
               ({o.ultimoTc.origen} del <span className="font-mono tabular-nums">{formatearFecha(o.ultimoTc.fecha)}</span>)
             </span>
@@ -121,14 +121,14 @@ function Franja({ o }: { o: Overview }) {
       <span className="flex items-center gap-space-sm">
         <PieChart className="size-4" aria-hidden />
         Split vigente:
-        <span className="font-mono text-on-surface tabular-nums">
+        <span className="font-mono text-foreground tabular-nums">
           {o.cuentas.socios.map((s) => `${s.nombre}: ${formatearPct(s.pctSociedad)}%`).join(" / ")}
         </span>
       </span>
       <span className="flex items-center gap-space-sm xl:ml-auto">
         <Wallet className="size-4" aria-hidden />
         Caja USDT:
-        <span className={cn("font-mono font-semibold tabular-nums", o.cuentas.caja.lt(0) ? "text-error" : "text-on-surface")}>
+        <span className={cn("font-mono font-semibold tabular-nums", o.cuentas.caja.lt(0) ? "text-danger" : "text-foreground")}>
           {formatearUsdt(o.cuentas.caja)} USDT
         </span>
       </span>
@@ -145,13 +145,13 @@ function CapitalEnCalle({ o }: { o: Overview }) {
     <Tarjeta>
       <Etiqueta>Capital vigente en calle</Etiqueta>
       <Usdt valor={o.cuentas.cartera} />
-      <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">Costo en USDT aún no recuperado</span>
-      <div className="mt-auto flex items-center gap-space-sm rounded-lg bg-surface-container-low px-space-sm py-space-xs text-body-md text-on-surface">
-        <CircleCheck className="size-4 text-tertiary" aria-hidden />
-        <Link href="/prestamos?estado=al-dia" className="hover:text-primary">
+      <span className="text-body-sm text-muted-foreground">Costo en USDT aún no recuperado</span>
+      <div className="mt-auto flex items-center gap-space-sm rounded-lg bg-muted px-space-sm py-space-xs text-body-md text-foreground">
+        <CircleCheck className="size-4 text-success" aria-hidden />
+        <Link href="/prestamos?estado=al-dia" className="hover:text-link">
           <span className="font-mono tabular-nums">{o.vigentes}</span> {o.vigentes === 1 ? "préstamo vigente" : "préstamos vigentes"}
         </Link>
-        <span className="ml-auto text-body-sm text-on-surface-variant">
+        <span className="ml-auto text-body-sm text-muted-foreground">
           A cobrar <span className="font-mono tabular-nums">${formatearArs(o.saldoPlanArs)}</span>
         </span>
       </div>
@@ -164,10 +164,10 @@ function RecuperadoMes({ o }: { o: Overview }) {
     <Tarjeta>
       <Etiqueta>Recuperado del mes (cobranzas)</Etiqueta>
       <Usdt valor={o.mes.recuperadoUsdt} />
-      <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">
+      <span className="font-mono text-data-cell text-muted-foreground tabular-nums">
         Cobrado ${formatearArs(o.mes.cobradoArs)} en {o.mes.pagos} {o.mes.pagos === 1 ? "pago" : "pagos"}
       </span>
-      <p className="mt-auto text-body-sm text-on-surface-variant">
+      <p className="mt-auto text-body-sm text-muted-foreground">
         Costo recuperado más ganancia reconocida en el mes. El efectivo cuenta recién al convertirlo.
       </p>
     </Tarjeta>
@@ -180,18 +180,18 @@ function Ganancia({ o }: { o: Overview }) {
     <Tarjeta>
       <div className="flex items-start gap-space-sm">
         <Etiqueta>Ganancia realizada</Etiqueta>
-        <span className="ml-auto rounded-sm bg-surface-container px-space-sm py-space-2xs font-mono text-badge-label text-on-surface-variant tabular-nums">
-          MES +{formatearUsdt(o.mes.gananciaUsdt)}
+        <span className="ml-auto rounded-sm bg-accent px-space-sm py-space-2xs font-mono text-badge-label text-muted-foreground tabular-nums">
+          Mes +{formatearUsdt(o.mes.gananciaUsdt)}
         </span>
       </div>
       <Usdt valor={total} />
       <div className="mt-auto grid grid-cols-2 gap-space-sm">
         {o.cuentas.socios.map((s) => (
-          <div key={s.id} className="flex flex-col items-center rounded-lg bg-surface-container-low px-space-sm py-space-xs">
+          <div key={s.id} className="flex flex-col items-center rounded-lg bg-muted px-space-sm py-space-xs">
             <Etiqueta>
               {s.nombre} ({formatearPct(s.pctSociedad)}%)
             </Etiqueta>
-            <span className="font-mono text-data-cell font-semibold text-on-surface tabular-nums">{formatearUsdt(s.ganancia)} USDT</span>
+            <span className="font-mono text-data-cell font-semibold text-foreground tabular-nums">{formatearUsdt(s.ganancia)} USDT</span>
           </div>
         ))}
       </div>
@@ -204,9 +204,9 @@ function Efectivo({ o }: { o: Overview }) {
   const alerta = o.efectivo.ars.gt(0) && dias > ALERTA_EFECTIVO_DIAS;
   const hay = o.efectivo.ars.gt(0);
   return (
-    <Tarjeta className={cn(alerta && "border-riesgo-rojo-borde bg-riesgo-rojo-bg/40")}>
+    <Tarjeta className={cn(alerta && "border-danger/25 bg-danger-soft/40")}>
       <div className="flex items-start gap-space-sm">
-        <Etiqueta className={cn("flex items-center gap-space-xs", alerta && "text-error")}>
+        <Etiqueta className={cn("flex items-center gap-space-xs", alerta && "text-danger")}>
           {alerta && <TriangleAlert className="size-3.5" aria-hidden />}
           Efectivo sin convertir
         </Etiqueta>
@@ -214,23 +214,23 @@ function Efectivo({ o }: { o: Overview }) {
           <span
             className={cn(
               "ml-auto rounded-sm px-space-sm py-space-2xs font-mono text-badge-label tabular-nums",
-              alerta ? "bg-riesgo-rojo-bg text-riesgo-rojo-fg" : "bg-surface-container text-on-surface-variant",
+              alerta ? "bg-danger-soft text-danger" : "bg-accent text-muted-foreground",
             )}
           >
-            {dias} {dias === 1 ? "DÍA" : "DÍAS"} ANT.
+            {dias} {dias === 1 ? "día" : "días"} ant.
           </span>
         )}
       </div>
       <span className="font-mono tabular-nums">
-        <span className={cn("text-headline-lg", alerta ? "text-error" : "text-on-surface")}>${formatearArs(o.efectivo.ars)}</span>{" "}
-        <span className="text-data-currency-secondary text-on-surface-variant">ARS</span>
+        <span className={cn("text-headline-lg", alerta ? "text-danger" : "text-foreground")}>${formatearArs(o.efectivo.ars)}</span>{" "}
+        <span className="text-data-currency-secondary text-muted-foreground">ARS</span>
       </span>
-      <span className="text-body-sm text-on-surface-variant">
+      <span className="text-body-sm text-muted-foreground">
         {hay ? "Expuesto al tipo de cambio hasta convertirlo." : "No hay efectivo pendiente."}
       </span>
       <Link
         href="/efectivo"
-        className={cn(buttonVariants({ variant: alerta ? "default" : "outline" }), "mt-auto gap-space-sm", alerta && "bg-error text-on-error hover:bg-error/90")}
+        className={cn(buttonVariants({ variant: alerta ? "default" : "outline" }), "mt-auto gap-space-sm", alerta && "bg-danger text-primary-foreground hover:bg-danger/90")}
       >
         <ArrowLeftRight aria-hidden />
         Registrar conversión
@@ -264,7 +264,7 @@ function AgendaCobros({ o }: { o: Overview }) {
         titulo="Agenda de cobros"
         subtitulo={`Lo vencido y lo que vence en los próximos ${o.diasAgenda} días`}
         extra={
-          <nav aria-label="Horizonte de la agenda" className="flex rounded-lg border border-outline-variant p-space-2xs">
+          <nav aria-label="Horizonte de la agenda" className="flex rounded-lg border border-border p-space-2xs">
             {DIAS_AGENDA.map((d) => (
               <Link
                 key={d}
@@ -273,38 +273,38 @@ function AgendaCobros({ o }: { o: Overview }) {
                 aria-current={d === o.diasAgenda ? "true" : undefined}
                 className={cn(
                   "rounded-sm px-space-sm py-space-2xs font-mono text-badge-label tabular-nums",
-                  d === o.diasAgenda ? "bg-primary text-on-primary" : "text-on-surface-variant hover:bg-surface-container",
+                  d === o.diasAgenda ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
                 )}
               >
-                {d} DÍAS
+                {d} días
               </Link>
             ))}
           </nav>
         }
       />
 
-      <div className="grid grid-cols-1 gap-space-sm border-b border-outline-variant px-space-md py-space-md sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-space-sm border-b border-border px-space-md py-space-md sm:grid-cols-2">
         <div className="flex flex-col gap-space-2xs">
           <Etiqueta>A cobrar en {o.diasAgenda} días</Etiqueta>
           <span className="font-mono tabular-nums">
-            <span className="text-data-currency-primary text-on-surface">${formatearArs(totalProximas)}</span>{" "}
-            <span className="text-body-sm text-on-surface-variant">en {plural(cuotasProximas)}</span>
+            <span className="text-data-currency-primary text-foreground">${formatearArs(totalProximas)}</span>{" "}
+            <span className="text-body-sm text-muted-foreground">en {plural(cuotasProximas)}</span>
           </span>
         </div>
         <div className="flex flex-col gap-space-2xs">
-          <Etiqueta className={cn(vencidas && "text-error")}>Vencido sin cobrar</Etiqueta>
+          <Etiqueta className={cn(vencidas && "text-danger")}>Vencido sin cobrar</Etiqueta>
           <span className="font-mono tabular-nums">
-            <span className={cn("text-data-currency-primary", vencidas ? "text-error" : "text-on-surface")}>
+            <span className={cn("text-data-currency-primary", vencidas ? "text-danger" : "text-foreground")}>
               ${formatearArs(vencidas?.total ?? new Decimal(0))}
             </span>{" "}
-            <span className="text-body-sm text-on-surface-variant">{vencidas ? `en ${plural(vencidas.items.length)}` : "nada atrasado"}</span>
+            <span className="text-body-sm text-muted-foreground">{vencidas ? `en ${plural(vencidas.items.length)}` : "nada atrasado"}</span>
           </span>
         </div>
       </div>
 
       {o.agenda.length === 0 ? (
-        <p className="flex items-center justify-center gap-space-sm px-space-md py-margin text-body-md text-on-surface-variant">
-          <CircleCheck className="size-4 text-tertiary" aria-hidden />
+        <p className="flex items-center justify-center gap-space-sm px-space-md py-margin text-body-md text-muted-foreground">
+          <CircleCheck className="size-4 text-success" aria-hidden />
           No hay nada para cobrar en los próximos {o.diasAgenda} días.
         </p>
       ) : (
@@ -312,11 +312,11 @@ function AgendaCobros({ o }: { o: Overview }) {
           <div key={b.grupo}>
             <div
               className={cn(
-                "flex items-center gap-space-sm border-b border-outline-variant px-space-md py-space-xs",
-                b.grupo === "vencidas" ? "bg-riesgo-rojo-bg text-riesgo-rojo-fg" : "bg-surface-container-low text-on-surface-variant",
+                "flex items-center gap-space-sm border-b border-border px-space-md py-space-xs",
+                b.grupo === "vencidas" ? "bg-danger-soft text-danger" : "bg-muted text-muted-foreground",
               )}
             >
-              <span className="text-label-caps uppercase">
+              <span className="text-label">
                 {TITULO_GRUPO[b.grupo]}
                 {(b.grupo === "hoy" || b.grupo === "manana") && <span className="font-mono tabular-nums"> · {diaYFecha(b.items[0]!.cuota.vencimiento)}</span>}
               </span>
@@ -337,27 +337,27 @@ function AgendaCobros({ o }: { o: Overview }) {
                 return (
                   <li
                     key={c.id}
-                    className="flex flex-wrap items-center gap-x-margin gap-y-space-xs border-b border-outline-variant/60 px-space-md py-space-sm last:border-b-0 hover:bg-primary/4"
+                    className="flex flex-wrap items-center gap-x-margin gap-y-space-xs border-b border-border/60 px-space-md py-space-sm last:border-b-0 hover:bg-primary/4"
                   >
                     <div className="flex min-w-0 flex-1 basis-56 flex-col">
-                      <span className="truncate text-body-lg font-medium text-on-surface">{p.cliente.nombre}</span>
-                      <span className="text-body-sm text-on-surface-variant">
-                        <Link href={`/prestamos/${p.id}`} className="font-mono font-semibold text-primary tabular-nums hover:underline">
+                      <span className="truncate text-body-lg font-medium text-foreground">{p.cliente.nombre}</span>
+                      <span className="text-body-sm text-muted-foreground">
+                        <Link href={`/prestamos/${p.id}`} className="font-mono font-semibold text-link tabular-nums hover:underline">
                           {numeroPrestamo(p.numero)}
                         </Link>{" "}
                         · cuota <span className="font-mono tabular-nums">{c.numero}</span> de <span className="font-mono tabular-nums">{p.nCuotas}</span>
                         {cuando && (
                           <>
                             {" "}
-                            · <span className={cn("font-mono tabular-nums", v.enDias < 0 && "text-error")}>{cuando}</span>
+                            · <span className={cn("font-mono tabular-nums", v.enDias < 0 && "text-danger")}>{cuando}</span>
                           </>
                         )}
                       </span>
                     </div>
                     <div className="ml-auto flex flex-col items-end">
-                      <span className="font-mono text-data-currency-primary whitespace-nowrap text-on-surface tabular-nums">${formatearArs(c.saldo)}</span>
+                      <span className="font-mono text-data-currency-primary whitespace-nowrap text-foreground tabular-nums">${formatearArs(c.saldo)}</span>
                       {parcial && (
-                        <span className="font-mono text-body-sm whitespace-nowrap text-on-surface-variant tabular-nums">
+                        <span className="font-mono text-body-sm whitespace-nowrap text-muted-foreground tabular-nums">
                           pagó ${formatearArs(c.total.minus(c.saldo))} de ${formatearArs(c.total)}
                         </span>
                       )}
@@ -391,7 +391,7 @@ function GananciaSemestral({ o }: { o: Overview }) {
         extra={
           <div className="flex flex-col items-end gap-space-2xs sm:flex-row sm:gap-margin">
             {socios.map((s, i) => (
-              <span key={s.id} className="flex items-center gap-space-xs text-body-sm text-on-surface">
+              <span key={s.id} className="flex items-center gap-space-xs text-body-sm text-foreground">
                 <span className={cn("size-2.5 rounded-sm", COLOR_SOCIO[i % 2])} aria-hidden />
                 {s.nombre} ({formatearPct(s.pctSociedad)}%)
               </span>
@@ -400,9 +400,9 @@ function GananciaSemestral({ o }: { o: Overview }) {
         }
       />
       <div className="p-space-md">
-        <div className="relative grid h-56 grid-cols-6 items-end gap-margin rounded-lg bg-surface-container-low px-margin pt-margin">
+        <div className="relative grid h-56 grid-cols-6 items-end gap-margin rounded-lg bg-muted px-margin pt-margin">
           {maximo.isZero() && (
-            <p className="absolute inset-x-0 top-1/3 text-center text-body-md text-on-surface-variant">
+            <p className="absolute inset-x-0 top-1/3 text-center text-body-md text-muted-foreground">
               Todavía no hay ganancia realizada: aparece cuando lo cobrado supera el costo en USDT del préstamo.
             </p>
           )}
@@ -410,11 +410,11 @@ function GananciaSemestral({ o }: { o: Overview }) {
             const actual = i === o.ganancia.length - 1;
             return (
               <div key={m.mes} className="flex h-full flex-col items-center justify-end gap-space-xs">
-                <span className={cn("font-mono text-badge-label tabular-nums", actual ? "rounded-sm bg-on-surface px-space-xs py-space-2xs text-surface" : "text-on-surface-variant")}>
+                <span className={cn("font-mono text-badge-label tabular-nums", actual ? "rounded-sm bg-foreground px-space-xs py-space-2xs text-background" : "text-muted-foreground")}>
                   {formatearUsdt(m.total)}
                 </span>
                 <div
-                  className={cn("flex w-full max-w-14 flex-col-reverse overflow-hidden rounded-t-sm", actual && "ring-2 ring-primary ring-offset-2 ring-offset-surface-container-low")}
+                  className={cn("flex w-full max-w-14 flex-col-reverse overflow-hidden rounded-t-sm", actual && "ring-2 ring-primary ring-offset-2 ring-offset-card")}
                   style={{ height: `${alto(m.total)}%` }}
                   title={m.porSocio.map((x) => `${socios.find((s) => s.id === x.id)?.nombre}: ${formatearUsdt(x.monto)} USDT`).join(" · ")}
                 >
@@ -426,7 +426,7 @@ function GananciaSemestral({ o }: { o: Overview }) {
                     />
                   ))}
                 </div>
-                <span className={cn("pb-space-sm text-label-caps uppercase", actual ? "text-primary" : "text-on-surface-variant")}>
+                <span className={cn("pb-space-sm text-label", actual ? "text-link" : "text-muted-foreground")}>
                   {MES_CORTO.format(aFecha(m.mes)).replace(".", "")}
                   {actual && " (act)"}
                 </span>
@@ -434,17 +434,17 @@ function GananciaSemestral({ o }: { o: Overview }) {
             );
           })}
         </div>
-        <div className="mt-space-md flex flex-wrap items-end gap-margin rounded-lg bg-surface-container-low px-space-md py-space-sm">
+        <div className="mt-space-md flex flex-wrap items-end gap-margin rounded-lg bg-muted px-space-md py-space-sm">
           <div className="flex flex-col">
             <Etiqueta>Total {MESES_GANANCIA} meses</Etiqueta>
-            <span className="font-mono text-data-currency-primary text-on-surface tabular-nums">{formatearUsdt(total)} USDT</span>
+            <span className="font-mono text-data-currency-primary text-foreground tabular-nums">{formatearUsdt(total)} USDT</span>
           </div>
           {socios.map((s) => {
             const del = o.ganancia.reduce((t, m) => t.plus(m.porSocio.find((x) => x.id === s.id)?.monto ?? 0), new Decimal(0));
             return (
               <div key={s.id} className="flex flex-col">
                 <Etiqueta>{s.nombre}</Etiqueta>
-                <span className="font-mono text-data-cell text-on-surface tabular-nums">{formatearUsdt(del)} USDT</span>
+                <span className="font-mono text-data-cell text-foreground tabular-nums">{formatearUsdt(del)} USDT</span>
               </div>
             );
           })}
@@ -473,10 +473,10 @@ function Atraso({ o }: { o: Overview }) {
           <span
             className={cn(
               "rounded-sm px-space-sm py-space-2xs font-mono text-badge-label tabular-nums",
-              o.atraso.length ? "bg-error text-on-error" : "bg-surface-container text-on-surface-variant",
+              o.atraso.length ? "bg-danger text-primary-foreground" : "bg-accent text-muted-foreground",
             )}
           >
-            {o.atraso.length} {o.atraso.length === 1 ? "CASO" : "CASOS"}
+            {o.atraso.length} {o.atraso.length === 1 ? "caso" : "casos"}
           </span>
         }
       />
@@ -495,8 +495,8 @@ function Atraso({ o }: { o: Overview }) {
         </div>
       </div>
       {o.atraso.length === 0 ? (
-        <p className="flex items-center justify-center gap-space-sm px-space-md py-margin text-body-md text-on-surface-variant">
-          <CircleCheck className="size-4 text-tertiary" aria-hidden />
+        <p className="flex items-center justify-center gap-space-sm px-space-md py-margin text-body-md text-muted-foreground">
+          <CircleCheck className="size-4 text-success" aria-hidden />
           Ningún préstamo con atraso.
         </p>
       ) : (
@@ -507,19 +507,19 @@ function Atraso({ o }: { o: Overview }) {
               <li
                 key={a.id}
                 className={cn(
-                  "flex flex-col gap-space-xs rounded-lg border border-outline-variant border-l-4 bg-surface-container-low px-space-md py-space-sm",
+                  "flex flex-col gap-space-xs rounded-lg border border-border border-l-4 bg-muted px-space-md py-space-sm",
                   {
-                    verde: "border-l-tertiary",
-                    amarillo: "border-l-riesgo-amarillo-fg",
-                    naranja: "border-l-riesgo-naranja-fg",
-                    rojo: "border-l-riesgo-rojo-fg",
-                    negro: "border-l-on-surface",
+                    verde: "border-l-success",
+                    amarillo: "border-l-warning",
+                    naranja: "border-l-warning",
+                    rojo: "border-l-danger",
+                    negro: "border-l-foreground",
                   }[a.riesgo],
                 )}
               >
                 <div className="flex flex-wrap items-center gap-x-space-sm gap-y-space-2xs">
-                  <span className="truncate text-body-lg font-semibold text-on-surface">{p.cliente.nombre}</span>
-                  <Link href={`/prestamos/${p.id}`} className="font-mono text-body-md font-semibold text-primary tabular-nums hover:underline">
+                  <span className="truncate text-body-lg font-semibold text-foreground">{p.cliente.nombre}</span>
+                  <Link href={`/prestamos/${p.id}`} className="font-mono text-body-md font-semibold text-link tabular-nums hover:underline">
                     {numeroPrestamo(p.numero)}
                   </Link>
                   <span className="ml-auto">
@@ -528,7 +528,7 @@ function Atraso({ o }: { o: Overview }) {
                     </BadgeRiesgo>
                   </span>
                 </div>
-                <span className="text-body-sm text-on-surface-variant">
+                <span className="text-body-sm text-muted-foreground">
                   {a.cuotasVencidas} {a.cuotasVencidas === 1 ? "cuota vencida" : "cuotas vencidas"} · cartera{" "}
                   <span className="font-mono tabular-nums">{formatearUsdt(p.carteraUsdt)} USDT</span>
                 </span>
@@ -547,18 +547,18 @@ function Atraso({ o }: { o: Overview }) {
             );
           })}
           {o.atraso.length > 8 && (
-            <Link href="/prestamos?estado=en-mora" className="text-center text-body-md text-primary hover:underline">
+            <Link href="/prestamos?estado=en-mora" className="text-center text-body-md text-link hover:underline">
               Ver los {o.atraso.length} préstamos en mora
             </Link>
           )}
         </ul>
       )}
-      <div className="mt-auto flex items-center gap-space-sm border-t border-riesgo-rojo-borde bg-riesgo-rojo-bg px-space-md py-space-md">
-        <TriangleAlert className="size-5 text-error" aria-hidden />
-        <span className="text-body-lg font-medium text-on-surface">Exposición total en mora</span>
+      <div className="mt-auto flex items-center gap-space-sm border-t border-danger/25 bg-danger-soft px-space-md py-space-md">
+        <TriangleAlert className="size-5 text-danger" aria-hidden />
+        <span className="text-body-lg font-medium text-foreground">Exposición total en mora</span>
         <span className="ml-auto flex flex-col items-end">
-          <span className="font-mono text-data-currency-primary text-error tabular-nums">{formatearUsdt(o.exposicionMoraUsdt)} USDT</span>
-          <span className="font-mono text-body-sm text-on-surface-variant tabular-nums">({formatearPct(pctExpuesto)}% de la cartera)</span>
+          <span className="font-mono text-data-currency-primary text-danger tabular-nums">{formatearUsdt(o.exposicionMoraUsdt)} USDT</span>
+          <span className="font-mono text-body-sm text-muted-foreground tabular-nums">({formatearPct(pctExpuesto)}% de la cartera)</span>
         </span>
       </div>
     </Panel>
@@ -568,23 +568,23 @@ function Atraso({ o }: { o: Overview }) {
 function UltimaOperacion({ o }: { o: Overview }) {
   const u = o.ultimaOperacion;
   return (
-    <div className="flex flex-wrap items-center gap-x-space-md gap-y-space-xs rounded-lg border border-outline-variant bg-surface-container-lowest px-space-md py-space-sm text-body-md">
+    <div className="flex flex-wrap items-center gap-x-space-md gap-y-space-xs rounded-lg border border-border bg-card px-space-md py-space-sm text-body-md">
       <Etiqueta>Última operación registrada</Etiqueta>
       {u ? (
         <>
-          <span className="flex items-center gap-space-xs font-medium text-on-surface">
-            <span className={cn("size-2 rounded-full", u.tipo === "anulacion" ? "bg-error" : "bg-tertiary")} aria-hidden />
+          <span className="flex items-center gap-space-xs font-medium text-foreground">
+            <span className={cn("size-2 rounded-full", u.tipo === "anulacion" ? "bg-danger" : "bg-success")} aria-hidden />
             {TIPOS_TX[u.tipo] ?? u.tipo}
           </span>
-          {u.descripcion && <span className="min-w-0 truncate text-on-surface-variant">{u.descripcion}</span>}
-          <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">
+          {u.descripcion && <span className="min-w-0 truncate text-muted-foreground">{u.descripcion}</span>}
+          <span className="font-mono text-data-cell text-muted-foreground tabular-nums">
             ({formatearFechaHora(u.en)} hs · {u.usuario})
           </span>
         </>
       ) : (
-        <span className="text-on-surface-variant">Todavía no hay operaciones.</span>
+        <span className="text-muted-foreground">Todavía no hay operaciones.</span>
       )}
-      <Link href="/prestamos" className="ml-auto flex items-center gap-space-xs text-primary hover:underline">
+      <Link href="/prestamos" className="ml-auto flex items-center gap-space-xs text-link hover:underline">
         <Landmark className="size-4" aria-hidden />
         Ver préstamos
       </Link>

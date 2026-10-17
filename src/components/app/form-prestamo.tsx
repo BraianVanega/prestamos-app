@@ -236,13 +236,13 @@ export function FormPrestamo({
         <Link
           href={correccion?.volver ?? "/prestamos"}
           aria-label={correccion ? `Volver a ${correccion.numero}` : "Volver a préstamos"}
-          className="flex size-9 items-center justify-center rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container"
+          className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground hover:bg-accent"
         >
           <ArrowLeft className="size-4" aria-hidden />
         </Link>
         <div className="flex flex-col">
-          <span className="text-label-caps text-primary uppercase">{correccion ? "Edición de préstamo" : "Originación de crédito"}</span>
-          <h1 className="text-headline-xl text-on-surface">
+          <span className="text-label text-link">{correccion ? "Edición de préstamo" : "Originación de crédito"}</span>
+          <h1 className="text-headline-xl text-foreground">
             {correccion ? (
               <>
                 Editar <span className="font-mono tabular-nums">{correccion.numero}</span>
@@ -264,12 +264,12 @@ export function FormPrestamo({
         <fieldset disabled={pendiente} className="flex min-w-0 flex-col gap-margin">
           {correccion && (
             <Panel icono={<PencilLine aria-hidden />} titulo="Motivo del cambio">
-              <p className="text-body-md text-on-surface-variant">
+              <p className="text-body-md text-muted-foreground">
                 Se anula <span className="font-mono tabular-nums">{correccion.numero}</span> (se revierte su desembolso) y se da de alta
                 un préstamo nuevo con estos datos. El original queda en el historial como anulado.
               </p>
               {correccion.cobros && (
-                <div className="flex flex-col gap-space-xs rounded-lg bg-surface-container-low p-space-md text-body-md text-on-surface">
+                <div className="flex flex-col gap-space-xs rounded-lg bg-muted p-space-md text-body-md text-foreground">
                   <p>
                     Ya tiene{" "}
                     <span className="font-mono tabular-nums">
@@ -278,7 +278,7 @@ export function FormPrestamo({
                     por <span className="font-mono tabular-nums">${formatearArs(correccion.cobros.ars)}</span>. Lo cobrado no cambia: cada cobro
                     se vuelve a imputar con las condiciones nuevas (misma fecha, monto y TC).
                   </p>
-                  <ul className="list-disc pl-space-lg text-body-sm text-on-surface-variant">
+                  <ul className="list-disc pl-space-lg text-body-sm text-muted-foreground">
                     <li>Si ahora debe menos de lo que pagó, la diferencia queda como saldo a favor del cliente.</li>
                     <li>La mora se recalcula con el cronograma nuevo; los descuentos pasan a la cuota del mismo número.</li>
                     <li>
@@ -309,7 +309,7 @@ export function FormPrestamo({
             icono={<UserRound aria-hidden />}
             titulo="Prestatario"
             accion={
-              <Link href="/clientes/nuevo" className="flex items-center gap-space-xs text-label-caps text-primary uppercase hover:underline">
+              <Link href="/clientes/nuevo" className="flex items-center gap-space-xs text-label text-link hover:underline">
                 <UserPlus className="size-3.5" aria-hidden />
                 Nuevo cliente
               </Link>
@@ -339,7 +339,7 @@ export function FormPrestamo({
                     {(item: OpcionCliente) => (
                       <ComboboxItem key={item.value} value={item}>
                         <span className="flex-1 truncate">{item.label}</span>
-                        <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">{item.documento}</span>
+                        <span className="font-mono text-data-cell text-muted-foreground tabular-nums">{item.documento}</span>
                       </ComboboxItem>
                     )}
                   </ComboboxList>
@@ -369,8 +369,8 @@ export function FormPrestamo({
               </Campo>
             </div>
 
-            <div className="flex flex-col gap-space-xs rounded-lg bg-primary p-margin-panel text-on-primary">
-              <span className="flex items-center gap-space-sm text-label-caps uppercase">
+            <div className="flex flex-col gap-space-xs rounded-lg bg-primary p-margin-panel text-primary-foreground">
+              <span className="flex items-center gap-space-sm text-label">
                 <Lock className="size-3.5" aria-hidden />
                 USDT prestado (base de medición congelada)
               </span>
@@ -424,9 +424,9 @@ export function FormPrestamo({
               </Campo>
             </div>
 
-            <div className="flex flex-col rounded-lg bg-surface-container-low p-space-md">
-              <span className="text-label-caps text-on-surface-variant uppercase">Tasa del préstamo completo</span>
-              <span className="text-body-md text-on-surface">
+            <div className="flex flex-col rounded-lg bg-muted p-space-md">
+              <span className="text-label text-muted-foreground">Tasa del préstamo completo</span>
+              <span className="text-body-md text-foreground">
                 {tasaTotal && mensualEquivalente ? (
                   <>
                     Se cobra el <span className="font-mono tabular-nums">{formatearPct(tasaTotal)}%</span> del capital en todo el plazo
@@ -467,33 +467,33 @@ export function FormPrestamo({
             <AlertDialogDescription render={<div />}>
               {calculo && cliente && (
                 <dl className="grid grid-cols-[auto_1fr] gap-x-margin gap-y-space-xs text-body-md">
-                  <dt className="text-on-surface-variant">Cliente</dt>
-                  <dd className="text-on-surface">{cliente.label}</dd>
-                  <dt className="text-on-surface-variant">Capital</dt>
-                  <dd className="font-mono text-on-surface tabular-nums">${formatearArs(calculo.plan.arsTotal.minus(calculo.plan.arsInteresPactado))}</dd>
-                  <dt className="text-on-surface-variant">Sale de caja</dt>
-                  <dd className="font-mono text-on-surface tabular-nums">
+                  <dt className="text-muted-foreground">Cliente</dt>
+                  <dd className="text-foreground">{cliente.label}</dd>
+                  <dt className="text-muted-foreground">Capital</dt>
+                  <dd className="font-mono text-foreground tabular-nums">${formatearArs(calculo.plan.arsTotal.minus(calculo.plan.arsInteresPactado))}</dd>
+                  <dt className="text-muted-foreground">Sale de caja</dt>
+                  <dd className="font-mono text-foreground tabular-nums">
                     {formatearUsdt(parteSociedad?.usdt ?? (estructura ? 0 : calculo.plan.usdtPrestado))} USDT
                   </dd>
                   {estructura
                     ?.filter((p) => p.participanteId !== "sociedad")
                     .map((p) => (
                       <Fragment key={p.participanteId}>
-                        <dt className="text-on-surface-variant">Pone {nombreTercero(p.participanteId)}</dt>
-                        <dd className="font-mono text-on-surface tabular-nums">
+                        <dt className="text-muted-foreground">Pone {nombreTercero(p.participanteId)}</dt>
+                        <dd className="font-mono text-foreground tabular-nums">
                           {p.usdt ? formatearUsdt(p.usdt) : "—"} USDT ({formatearPct(p.pctCapital)}%)
                         </dd>
                       </Fragment>
                     ))}
-                  <dt className="text-on-surface-variant">Cuotas</dt>
-                  <dd className="font-mono text-on-surface tabular-nums">
+                  <dt className="text-muted-foreground">Cuotas</dt>
+                  <dd className="font-mono text-foreground tabular-nums">
                     {calculo.plan.cuotas.length} {FRECUENCIAS[v.frecuencia].plural} · vence {formatearFecha(calculo.plan.vencimientoFinal)}
                   </dd>
-                  <dt className="text-on-surface-variant">Total a cobrar</dt>
-                  <dd className="font-mono text-on-surface tabular-nums">${formatearArs(calculo.plan.arsTotal)}</dd>
+                  <dt className="text-muted-foreground">Total a cobrar</dt>
+                  <dd className="font-mono text-foreground tabular-nums">${formatearArs(calculo.plan.arsTotal)}</dd>
                 </dl>
               )}
-              <p className="mt-space-md text-body-sm text-on-surface-variant">
+              <p className="mt-space-md text-body-sm text-muted-foreground">
                 {correccion
                   ? `${correccion.numero} queda anulado y su desembolso vuelve a caja. El préstamo editado sale con número nuevo${correccion.cobros ? " y con los cobros reimputados" : ""}.`
                   : "Si después hay que cambiar algo, se hace con Editar en la ficha."}
@@ -555,12 +555,12 @@ function EstructuraCapital({
       }
     >
       {filas.length === 0 ? (
-        <p className="text-body-md text-on-surface-variant">
+        <p className="text-body-md text-muted-foreground">
           100% de la Sociedad ({socios.map((s) => `${s.nombre} ${s.pct}%`).join(" / ")}).{" "}
           {terceros.length === 0 ? (
             <>
               Para sumar a alguien que pone plata, dalo de alta en{" "}
-              <Link href="/terceros" className="text-primary hover:underline">
+              <Link href="/terceros" className="text-link hover:underline">
                 Terceros
               </Link>
               .
@@ -625,12 +625,12 @@ function EstructuraCapital({
           })}
         </div>
       )}
-      {error && <p className="text-body-sm text-error">{error}</p>}
+      {error && <p className="text-body-sm text-danger">{error}</p>}
       {filas.length > 0 && (
-        <div className="flex flex-col gap-space-xs rounded-lg bg-surface-container-low p-space-md">
-          <span className="text-label-caps text-on-surface-variant uppercase">Reparto de capital y ganancia</span>
+        <div className="flex flex-col gap-space-xs rounded-lg bg-muted p-space-md">
+          <span className="text-label text-muted-foreground">Reparto de capital y ganancia</span>
           {!estructura ? (
-            <span className="text-body-md text-on-surface-variant">Completá el % de cada tercero (entre todos, hasta 100%).</span>
+            <span className="text-body-md text-muted-foreground">Completá el % de cada tercero (entre todos, hasta 100%).</span>
           ) : (
             <ul className="flex flex-col gap-space-2xs text-body-md">
               {sociedad &&
@@ -638,8 +638,8 @@ function EstructuraCapital({
                   const pct = sociedad.pctCapital.times(parsearDecimal(s.pct) ?? 0).div(100);
                   return (
                     <li key={s.nombre} className="flex justify-between gap-margin">
-                      <span className="text-on-surface">{s.nombre} (Sociedad)</span>
-                      <span className="font-mono tabular-nums text-on-surface">{formatearPct(pct)}%</span>
+                      <span className="text-foreground">{s.nombre} (Sociedad)</span>
+                      <span className="font-mono tabular-nums text-foreground">{formatearPct(pct)}%</span>
                     </li>
                   );
                 })}
@@ -647,15 +647,15 @@ function EstructuraCapital({
                 .filter((p) => p.participanteId !== "sociedad")
                 .map((p) => (
                   <li key={p.participanteId} className="flex justify-between gap-margin">
-                    <span className="text-on-surface">{nombreTercero(p.participanteId)}</span>
-                    <span className="font-mono tabular-nums text-on-surface">
-                      {formatearPct(p.pctCapital)}%{p.usdt && <span className="text-on-surface-variant"> · pone {formatearUsdt(p.usdt)} USDT</span>}
+                    <span className="text-foreground">{nombreTercero(p.participanteId)}</span>
+                    <span className="font-mono tabular-nums text-foreground">
+                      {formatearPct(p.pctCapital)}%{p.usdt && <span className="text-muted-foreground"> · pone {formatearUsdt(p.usdt)} USDT</span>}
                     </span>
                   </li>
                 ))}
             </ul>
           )}
-          <span className="text-body-sm text-on-surface-variant">
+          <span className="text-body-sm text-muted-foreground">
             La plata de cada tercero entra a la caja al desembolsar; la caja pone solo la parte de la Sociedad. Cada uno se lleva su % de la ganancia.
           </span>
         </div>
@@ -673,22 +673,22 @@ type Calculo = {
 
 function Simulacion({ calculo, tasaTotal }: { calculo: Calculo; tasaTotal: Decimal | null }) {
   return (
-    <section className="flex flex-col gap-space-md rounded-lg border border-outline-variant bg-surface-container-lowest p-margin-panel">
-      <h2 className="text-label-caps text-on-surface-variant uppercase">Simulación</h2>
+    <section className="flex flex-col gap-space-md rounded-lg border border-border bg-card p-margin-panel">
+      <h2 className="text-label text-muted-foreground">Simulación</h2>
       <div className="grid grid-cols-3 gap-gutter-compact">
         <Kpi etiqueta="Total a cobrar" usdt={calculo?.proy.totalUsdt} ars={calculo?.plan.arsTotal} />
         <Kpi etiqueta="Ganancia proyectada" usdt={calculo?.proy.gananciaUsdt} ars={calculo?.plan.arsInteresPactado} destacado />
-        <div className="flex flex-col gap-space-xs rounded-lg bg-surface-container-low p-space-md">
-          <span className="text-label-caps text-on-surface-variant uppercase">Rendimiento</span>
-          <span className="font-mono text-data-currency-primary text-on-surface tabular-nums">
+        <div className="flex flex-col gap-space-xs rounded-lg bg-muted p-space-md">
+          <span className="text-label text-muted-foreground">Rendimiento</span>
+          <span className="font-mono text-data-currency-primary text-foreground tabular-nums">
             {tasaTotal && calculo ? `${formatearPct(tasaTotal)}%` : "—"}
           </span>
-          <span className="font-mono text-data-currency-secondary text-on-surface-variant tabular-nums">
+          <span className="font-mono text-data-currency-secondary text-muted-foreground tabular-nums">
             {calculo ? `TNA ${formatearPct(calculo.proy.tnaPct)}%` : " "}
           </span>
         </div>
       </div>
-      <p className="text-body-sm text-on-surface-variant">
+      <p className="text-body-sm text-muted-foreground">
         Proyección al TC de entrada. La ganancia real depende del TC de cada cobro.
       </p>
     </section>
@@ -697,13 +697,13 @@ function Simulacion({ calculo, tasaTotal }: { calculo: Calculo; tasaTotal: Decim
 
 function Kpi({ etiqueta, usdt, ars, destacado }: { etiqueta: string; usdt?: Decimal; ars?: Decimal; destacado?: boolean }) {
   return (
-    <div className={cn("flex min-w-0 flex-col gap-space-xs rounded-lg p-space-md", destacado ? "bg-riesgo-verde-bg" : "bg-surface-container-low")}>
-      <span className={cn("text-label-caps uppercase", destacado ? "text-riesgo-verde-fg" : "text-on-surface-variant")}>{etiqueta}</span>
-      <span className={cn("truncate font-mono text-data-currency-primary tabular-nums", destacado ? "text-tertiary" : "text-on-surface")}>
+    <div className={cn("flex min-w-0 flex-col gap-space-xs rounded-lg p-space-md", destacado ? "bg-success-soft" : "bg-muted")}>
+      <span className={cn("text-label", destacado ? "text-success" : "text-muted-foreground")}>{etiqueta}</span>
+      <span className={cn("truncate font-mono text-data-currency-primary tabular-nums", destacado ? "text-success" : "text-foreground")}>
         {usdt ? `${destacado ? "+" : ""}${formatearUsdt(usdt)}` : "—"}
         {usdt && <span className="ml-space-xs text-data-currency-secondary">USDT</span>}
       </span>
-      <span className="truncate font-mono text-data-currency-secondary text-on-surface-variant tabular-nums">
+      <span className="truncate font-mono text-data-currency-secondary text-muted-foreground tabular-nums">
         {ars ? `≈ $${formatearArs(ars)}` : " "}
       </span>
     </div>
@@ -711,24 +711,24 @@ function Kpi({ etiqueta, usdt, ars, destacado }: { etiqueta: string; usdt?: Deci
 }
 
 function Cronograma({ calculo, frecuencia }: { calculo: Calculo; frecuencia: Frecuencia }) {
-  const th = "px-space-xs py-space-sm text-right text-label-caps text-on-surface-variant uppercase";
+  const th = "px-space-xs py-space-sm text-right text-label text-muted-foreground";
   const td = "px-space-xs py-space-xs text-right font-mono text-data-cell tabular-nums";
   return (
-    <section className="flex flex-col gap-space-md rounded-lg border border-outline-variant bg-surface-container-lowest p-margin-panel">
+    <section className="flex flex-col gap-space-md rounded-lg border border-border bg-card p-margin-panel">
       <div className="flex items-baseline justify-between gap-margin">
-        <h2 className="text-headline-sm text-on-surface">Cronograma de cuotas</h2>
+        <h2 className="text-headline-sm text-foreground">Cronograma de cuotas</h2>
         {calculo && (
-          <span className="font-mono text-data-cell text-on-surface-variant tabular-nums">
+          <span className="font-mono text-data-cell text-muted-foreground tabular-nums">
             {calculo.plan.cuotas.length} {FRECUENCIAS[frecuencia].plural}
           </span>
         )}
       </div>
       {!calculo ? (
-        <p className="text-body-md text-on-surface-variant">Completá capital, TC, tasa y cuotas para ver el cronograma.</p>
+        <p className="text-body-md text-muted-foreground">Completá capital, TC, tasa y cuotas para ver el cronograma.</p>
       ) : (
         <div className="max-h-[28rem] overflow-auto">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-surface-container-low">
+            <thead className="sticky top-0 bg-muted">
               <tr>
                 <th className={cn(th, "text-left")}>N°</th>
                 <th className={cn(th, "text-left")}>Vence</th>
@@ -740,25 +740,25 @@ function Cronograma({ calculo, frecuencia }: { calculo: Calculo; frecuencia: Fre
             </thead>
             <tbody>
               {calculo.plan.cuotas.map((c, i) => (
-                <tr key={c.numero} className="border-b border-outline-variant/50 even:bg-surface-container-low/40">
-                  <td className={cn(td, "text-left text-primary")}>#{String(c.numero).padStart(2, "0")}</td>
+                <tr key={c.numero} className="border-b border-border/50 even:bg-muted/40">
+                  <td className={cn(td, "text-left text-link")}>#{String(c.numero).padStart(2, "0")}</td>
                   <td className={cn(td, "text-left")}>{formatearFecha(c.vencimiento)}</td>
                   <td className={td}>{formatearArs(c.arsCapital)}</td>
-                  <td className={cn(td, "text-tertiary")}>{formatearArs(c.arsInteres)}</td>
+                  <td className={cn(td, "text-success")}>{formatearArs(c.arsInteres)}</td>
                   <td className={td}>{formatearArs(calculo.proy.cuotas[i]!.totalArs)}</td>
                   <td className={cn(td, "font-semibold")}>{formatearUsdt(calculo.proy.cuotas[i]!.totalUsdt)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-surface-container-low">
+            <tfoot className="bg-muted">
               <tr>
-                <td colSpan={2} className="px-space-sm py-space-sm text-label-caps text-on-surface-variant uppercase">
+                <td colSpan={2} className="px-space-sm py-space-sm text-label text-muted-foreground">
                   Total
                 </td>
                 <td className={cn(td, "font-semibold")}>{formatearArs(calculo.plan.arsTotal.minus(calculo.plan.arsInteresPactado))}</td>
-                <td className={cn(td, "font-semibold text-tertiary")}>{formatearArs(calculo.plan.arsInteresPactado)}</td>
+                <td className={cn(td, "font-semibold text-success")}>{formatearArs(calculo.plan.arsInteresPactado)}</td>
                 <td className={cn(td, "font-semibold")}>{formatearArs(calculo.plan.arsTotal)}</td>
-                <td className={cn(td, "font-semibold text-primary")}>{formatearUsdt(calculo.proy.totalUsdt)}</td>
+                <td className={cn(td, "font-semibold text-link")}>{formatearUsdt(calculo.proy.totalUsdt)}</td>
               </tr>
             </tfoot>
           </table>

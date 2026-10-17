@@ -7,7 +7,7 @@ Sistema de gestión de préstamos (ARS / USDT) para una sociedad con dos socios.
 - Negocio: `docs/spec.pdf`
 - Esquema: `src/db/schema.ts` (parte de `docs/schema.ts`; cambios posteriores en migraciones 0002+)
 - Integridad en la base: `drizzle/0001_triggers.sql`
-- Diseño: `design/DESIGN.md` + `design/*.png`
+- Diseño: `design/DESIGN.md` (rediseño en Claude Design; `design/*.png` es la versión anterior)
 
 ## Reglas no negociables
 
@@ -62,19 +62,21 @@ Sistema de gestión de préstamos (ARS / USDT) para una sociedad con dos socios.
 - Componentes de **shadcn/ui** (`pnpm dlx shadcn@latest add <componente>`) en
   `src/components/ui`; no reinventar lo que shadcn ya resuelve.
   Después de cada `add`, cambiar `import { cn } from "cn"` por `import { cn } from "@/lib/utils"`:
-  ese `cn` conoce los tokens de DESIGN.md (si no, `text-label-caps` se pierde junto a un color).
-- Diseño según `design/DESIGN.md` y las capturas `design/*.png`: revisarlas antes
-  de construir o cambiar una pantalla.
+  ese `cn` conoce los tokens de DESIGN.md (si no, `text-label` se pierde junto a un color).
+- Diseño según `design/DESIGN.md` (y el proyecto de Claude Design que cita): revisarlo
+  antes de construir o cambiar una pantalla. Las capturas `design/*.png` sirven solo
+  como referencia de contenido.
 - **Sin colores hardcodeados**: nada de hex/rgb/oklch en componentes ni clases de la
   paleta de Tailwind (`bg-blue-600`, `text-slate-500`). Solo tokens del tema definidos
-  en `src/app/globals.css`: `bg-primary`, `bg-surface-container-low`,
-  `text-on-surface-variant`, `border-outline-variant`, `text-tertiary`,
-  `bg-riesgo-rojo-bg text-riesgo-rojo-fg border-riesgo-rojo-borde`, etc.
+  en `src/app/globals.css`: `bg-primary`, `bg-card`, `bg-muted`, `text-muted-foreground`,
+  `border-border`, `text-link`, `text-usdt`, `text-success`, `bg-danger-soft text-danger`,
+  `bg-risk-4 text-risk-4-foreground`, etc.
   Si falta un color, se agrega como token en `globals.css`.
 - Tipografía con los tokens de DESIGN.md: `text-headline-xl|lg|sm`, `text-body-lg|md|sm`,
-  `text-label-caps`, `text-data-currency-primary|secondary`, `text-data-cell`, `text-badge-label`.
+  `text-label`, `text-data-currency-primary|secondary`, `text-data-cell`, `text-badge-label`.
+  Sin mayúsculas sostenidas (`uppercase`) ni texto corrido en mono.
 - **Números con `tabular-nums`**: todo monto, TC, tasa, porcentaje, fecha, N° de
-  préstamo o cuota se renderiza con `font-mono tabular-nums` (JetBrains Mono), alineado
+  préstamo o cuota se renderiza con `font-mono tabular-nums` (Geist Mono), alineado
   a la derecha en tablas.
 - Radios: 4px por defecto (`rounded-lg`), modales hasta 8px; badges de riesgo `rounded-full`.
 - Por ahora solo tema claro (DESIGN.md no define tokens oscuros).

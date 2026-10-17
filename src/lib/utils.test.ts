@@ -3,8 +3,8 @@ import { cn } from "./utils";
 
 describe("cn con tokens de DESIGN.md", () => {
   it("conserva el tamaño propio junto a un color del tema", () => {
-    expect(cn("text-sm", "text-label-caps text-on-surface-variant")).toBe("text-label-caps text-on-surface-variant");
-    expect(cn("text-xs", "text-badge-label text-riesgo-verde-fg")).toBe("text-badge-label text-riesgo-verde-fg");
+    expect(cn("text-sm", "text-label text-muted-foreground")).toBe("text-label text-muted-foreground");
+    expect(cn("text-xs", "text-badge-label text-success")).toBe("text-badge-label text-success");
   });
 
   it("los espaciados propios pisan a los de Tailwind", () => {

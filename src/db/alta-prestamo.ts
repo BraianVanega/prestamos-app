@@ -42,7 +42,7 @@ export class ErrorAltaPrestamo extends Error {}
 export async function insertarPrestamo(
   tx: Tx,
   d: AltaPrestamo,
-  ctx: { usuarioId: string; sociedadId: string; corrigeAId?: string },
+  ctx: { usuarioId: string; sociedadId: string; corrigeAId?: string; numero?: number },
 ): Promise<{ id: string; numero: number }> {
   const plan = calcularPlan(d);
   const terceros = d.terceros ?? [];
@@ -74,6 +74,8 @@ export async function insertarPrestamo(
       arsInteresPactado: plan.arsInteresPactado.toFixed(DECIMALES.ars),
       notas: d.notas,
       corrigeAId: ctx.corrigeAId,
+      // Una versión editada conserva el N° del original (si no, lo da la secuencia).
+      numero: ctx.numero,
       creadoPor: ctx.usuarioId,
     })
     .returning({ id: prestamos.id, numero: prestamos.numero });

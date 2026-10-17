@@ -92,10 +92,8 @@ export interface FichaPrestamo {
   estructura: string;
   titulares: TitularFicha[];
   historial: EventoFicha[];
-  /** Préstamo anulado que este corrige. */
-  corrigeA: { id: string; numero: number } | null;
-  /** Si este se anuló por corrección: cuándo, por qué y cuál lo reemplaza. */
-  anulacion: { en: Date; motivo: string; usuario: string; reemplazo: { id: string; numero: number } | null } | null;
+  /** Si es una versión anterior (se reemplazó al editarlo): cuándo, por qué y quién. */
+  anulacion: { en: Date; motivo: string; usuario: string } | null;
 }
 
 /** Todo lo que muestra la ficha del préstamo a la fecha `hoy`. */
@@ -193,21 +191,14 @@ export async function cargarFichaPrestamo(id: string, hoy: Fecha): Promise<Ficha
     consultaHistorial,
   ]);
 
-  const [corrigeA, anulacion, reemplazo] = await Promise.all([
-    p.corrigeAId
-      ? db.select({ id: prestamos.id, numero: prestamos.numero }).from(prestamos).where(eq(prestamos.id, p.corrigeAId))
-      : Promise.resolve([]),
+  const anulacion =
     p.estado === "anulado"
-      ? db
+      ? await db
           .select({ en: anulaciones.creadoEn, motivo: anulaciones.motivo, usuario: usuarios.nombre })
           .from(anulaciones)
           .innerJoin(usuarios, eq(usuarios.id, anulaciones.creadoPor))
           .where(and(eq(anulaciones.entidad, "prestamos"), eq(anulaciones.entidadId, id)))
-      : Promise.resolve([]),
-    p.estado === "anulado"
-      ? db.select({ id: prestamos.id, numero: prestamos.numero }).from(prestamos).where(eq(prestamos.corrigeAId, id))
-      : Promise.resolve([]),
-  ]);
+      : [];
 
   // Plan con lo imputado por pagos vigentes.
   const vigentes = imputado.filter((i) => !i.anulado);
@@ -366,7 +357,6 @@ export async function cargarFichaPrestamo(id: string, hoy: Fecha): Promise<Ficha
     estructura: partes.length === 1 ? (partes[0]!.tipo === "sociedad" ? "Sociedad" : partes[0]!.nombre) : "Con terceros",
     titulares,
     historial: txs.map((t) => ({ ...t, usdt: usdtPorTx.get(t.id) ?? new Decimal(0) })),
-    corrigeA: corrigeA[0] ?? null,
-    anulacion: anulacion[0] ? { ...anulacion[0], reemplazo: reemplazo[0] ?? null } : null,
+    anulacion: anulacion[0] ?? null,
   };
 }

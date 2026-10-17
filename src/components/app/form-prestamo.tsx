@@ -217,8 +217,9 @@ export function FormPrestamo({
   const parteSociedad = estructura?.find((p) => p.participanteId === "sociedad");
   const nombreTercero = (id: string) => terceros.find((t) => t.value === id)?.label ?? "Tercero";
 
+  // El alta se confirma (sale plata de caja); una edición se guarda directo.
   const pedirConfirmacion = () => {
-    if (calculo && cliente && (!correccion || motivo.trim().length >= 3)) setConfirmando(true);
+    if (calculo && cliente && !correccion) setConfirmando(true);
     else formRef.current?.requestSubmit();
   };
 
@@ -265,8 +266,8 @@ export function FormPrestamo({
           {correccion && (
             <Panel icono={<PencilLine aria-hidden />} titulo="Motivo del cambio">
               <p className="text-body-md text-muted-foreground">
-                Se anula <span className="font-mono tabular-nums">{correccion.numero}</span> (se revierte su desembolso) y se da de alta
-                un préstamo nuevo con estos datos. El original queda en el historial como anulado.
+                <span className="font-mono tabular-nums">{correccion.numero}</span> sigue con el mismo número. Cómo estaba antes y qué
+                cambiaste quedan en &ldquo;Cambios&rdquo;, en la ficha del préstamo.
               </p>
               {correccion.cobros && (
                 <div className="flex flex-col gap-space-xs rounded-lg bg-muted p-space-md text-body-md text-foreground">
@@ -275,8 +276,8 @@ export function FormPrestamo({
                     <span className="font-mono tabular-nums">
                       {correccion.cobros.pagos} {correccion.cobros.pagos === 1 ? "cobro" : "cobros"}
                     </span>{" "}
-                    por <span className="font-mono tabular-nums">${formatearArs(correccion.cobros.ars)}</span>. Lo cobrado no cambia: cada cobro
-                    se vuelve a imputar con las condiciones nuevas (misma fecha, monto y TC).
+                    por <span className="font-mono tabular-nums">${formatearArs(correccion.cobros.ars)}</span>. Lo cobrado no cambia: los cobros
+                    se pasan solos a las condiciones nuevas (misma fecha, monto y TC).
                   </p>
                   <ul className="list-disc pl-space-lg text-body-sm text-muted-foreground">
                     <li>Si ahora debe menos de lo que pagó, la diferencia queda como saldo a favor del cliente.</li>
@@ -463,7 +464,7 @@ export function FormPrestamo({
       <AlertDialog open={confirmando} onOpenChange={setConfirmando}>
         <AlertDialogContent className="rounded-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>{correccion ? `Confirmá los cambios en ${correccion.numero}` : "Confirmá el desembolso"}</AlertDialogTitle>
+            <AlertDialogTitle>Confirmá el desembolso</AlertDialogTitle>
             <AlertDialogDescription render={<div />}>
               {calculo && cliente && (
                 <dl className="grid grid-cols-[auto_1fr] gap-x-margin gap-y-space-xs text-body-md">
@@ -494,9 +495,7 @@ export function FormPrestamo({
                 </dl>
               )}
               <p className="mt-space-md text-body-sm text-muted-foreground">
-                {correccion
-                  ? `${correccion.numero} queda anulado y su desembolso vuelve a caja. El préstamo editado sale con número nuevo${correccion.cobros ? " y con los cobros reimputados" : ""}.`
-                  : "Si después hay que cambiar algo, se hace con Editar en la ficha."}
+                Si después hay que cambiar algo, se hace con Editar en la ficha.
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -508,7 +507,7 @@ export function FormPrestamo({
                 formRef.current?.requestSubmit();
               }}
             >
-              {correccion ? "Guardar" : "Desembolsar"}
+              Desembolsar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

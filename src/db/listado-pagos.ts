@@ -4,6 +4,7 @@ import type { db, Tx } from "./index";
 import { anulaciones, asientos, clientes, conversionLotes, conversiones, imputaciones, pagos, prestamos, transacciones, usuarios } from "./schema";
 import { usdtConversion } from "@/engine/conversion";
 import type { Fecha } from "@/engine/fechas";
+import { PATRON_MOTIVO_EDICION } from "@/lib/anulaciones";
 
 type Lector = typeof db | Tx;
 
@@ -59,6 +60,8 @@ export async function cargarPagos(l: Lector): Promise<PagoListado[]> {
     .innerJoin(clientes, eq(clientes.id, pagos.clienteId))
     .innerJoin(usuarios, eq(usuarios.id, pagos.creadoPor))
     .leftJoin(anulacionesPago, eq(anulacionesPago.id, pagos.id))
+    // Los cobros que una edición de préstamo volvió a registrar aparecen una sola vez (el vigente).
+    .where(sql`coalesce(${anulacionesPago.motivo}, '') !~ ${PATRON_MOTIVO_EDICION}`)
     .orderBy(desc(pagos.fecha), desc(pagos.creadoEn));
   if (filas.length === 0) return [];
   const ids = filas.map((f) => f.id);

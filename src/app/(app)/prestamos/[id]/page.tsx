@@ -1,12 +1,13 @@
 import Decimal from "decimal.js";
-import { ArrowLeft, Ban, CalendarDays, History, PencilLine, ReceiptText, SlidersHorizontal, Wallet } from "lucide-react";
+import { ArrowLeft, CalendarDays, History, PencilLine, ReceiptText, SlidersHorizontal, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { BotonAnular } from "@/components/app/boton-anular";
 import { BadgeRiesgo, BarraProgreso, COLORES_RIESGO } from "@/components/app/riesgo";
 import { buttonVariants } from "@/components/ui/button";
 import { cargarFichaPrestamo, type CargoFicha, type EventoFicha, type FichaPrestamo } from "@/db/ficha-prestamo";
+import { cambiosPrestamo, versionActual, type CambioPrestamo } from "@/db/versiones-prestamo";
 import { atrasoPctDelPlazo, nivelRiesgo, type CuotaEstado } from "@/engine/estado-prestamo";
 import { formatearDocumento, formatearFecha, formatearFechaHora } from "@/lib/formato";
 import { hoyArgentina } from "@/lib/hoy";
@@ -24,7 +25,7 @@ const ESTADOS_PRESTAMO = {
   cancelado: { etiqueta: "Cancelado", clase: "border-border bg-accent text-muted-foreground" },
   castigado: { etiqueta: "Castigado", clase: "border-danger/25 bg-danger-soft text-danger" },
   refinanciado: { etiqueta: "Refinanciado", clase: "border-border bg-accent text-muted-foreground" },
-  anulado: { etiqueta: "Anulado", clase: "border-danger/25 bg-danger-soft text-danger" },
+  anulado: { etiqueta: "Versión anterior", clase: "border-border bg-accent text-muted-foreground" },
 } as const;
 
 const TIPOS_EVENTO: Record<EventoFicha["tipo"], string> = {
@@ -62,12 +63,19 @@ function Usdt({ valor, className }: { valor: Decimal; className?: string }) {
   );
 }
 
-export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id]">) {
+export default async function PrestamoPage({ params, searchParams }: PageProps<"/prestamos/[id]">) {
   const { id } = await params;
+  const { anterior } = await searchParams;
   const hoy = hoyArgentina();
   const f = await cargarFichaPrestamo(id, hoy);
   if (!f) notFound();
   const { prestamo: p, cliente, plan } = f;
+
+  // Un préstamo editado sigue siendo el mismo: los links a una versión anterior
+  // llevan a la vigente, salvo que se pida verla desde el historial de cambios.
+  const actualId = p.estado === "anulado" ? await versionActual(p.id) : p.id;
+  if (actualId !== p.id && anterior === undefined) redirect(`/prestamos/${actualId}`);
+  const cambios = actualId === p.id ? await cambiosPrestamo(p.id) : [];
 
   const usdtPrestado = new Decimal(p.usdtPrestado);
   const arsCapital = new Decimal(p.arsCapital);
@@ -119,35 +127,19 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
       </div>
 
       {f.anulacion && (
-        <div role="note" className="flex flex-wrap items-start gap-space-sm rounded-lg border border-danger/25 bg-danger-soft px-space-md py-space-sm text-body-md text-danger">
-          <Ban className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <div role="note" className="flex flex-wrap items-start gap-space-sm rounded-lg bg-warning-soft px-space-md py-space-sm text-body-md text-foreground">
+          <History className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
           <p className="min-w-0 flex-1">
-            Anulado por edición el <span className="font-mono tabular-nums">{formatearFechaHora(f.anulacion.en)}</span> por{" "}
-            {f.anulacion.usuario}: {f.anulacion.motivo}. Su desembolso se revirtió y no cuenta en caja ni en cartera; sus cobros se reimputaron al préstamo nuevo.
-            {f.anulacion.reemplazo && (
-              <>
-                {" "}
-                Lo reemplaza{" "}
-                <Link href={`/prestamos/${f.anulacion.reemplazo.id}`} className="font-mono font-semibold tabular-nums underline">
-                  {numeroPrestamo(f.anulacion.reemplazo.numero)}
-                </Link>
-                .
-              </>
+            Estás viendo <b className="font-semibold">una versión anterior</b> de este préstamo. {f.anulacion.usuario} lo editó el{" "}
+            <span className="font-mono tabular-nums">{formatearFechaHora(f.anulacion.en)}</span>: {f.anulacion.motivo}. No cuenta en caja ni
+            en cartera; sus cobros pasaron a la versión actual.{" "}
+            {actualId !== p.id && (
+              <Link href={`/prestamos/${actualId}`} className="font-medium text-link hover:underline">
+                Ver versión actual →
+              </Link>
             )}
           </p>
         </div>
-      )}
-      {f.corrigeA && (
-        <p className="flex items-center gap-space-sm text-body-md text-muted-foreground">
-          <PencilLine className="size-4 shrink-0" aria-hidden />
-          <span>
-            Reemplaza a{" "}
-            <Link href={`/prestamos/${f.corrigeA.id}`} className="font-mono text-link tabular-nums hover:underline">
-              {numeroPrestamo(f.corrigeA.numero)}
-            </Link>
-            , anulado al editarlo.
-          </span>
-        </p>
       )}
 
       <div className="grid gap-gutter-compact md:grid-cols-2 2xl:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))]">
@@ -238,6 +230,7 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
         </div>
         <div className="flex min-w-0 flex-col gap-gutter-compact">
           <Condiciones f={f} arsCapital={arsCapital} arsInteres={arsInteres} />
+          {cambios.length > 0 && <Cambios cambios={cambios} />}
           <Historial eventos={f.historial} />
         </div>
       </div>
@@ -515,6 +508,48 @@ function Condiciones({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapit
         ))}
       </dl>
       {p.notas && <p className="mt-space-sm text-body-md whitespace-pre-line text-muted-foreground">{p.notas}</p>}
+    </Panel>
+  );
+}
+
+/** Ediciones del préstamo: qué cambió, quién, cuándo y por qué. */
+function Cambios({ cambios }: { cambios: CambioPrestamo[] }) {
+  return (
+    <Panel className="p-space-md">
+      <div className="mb-space-md flex items-center gap-space-sm">
+        <PencilLine className="size-5 text-link" aria-hidden />
+        <h2 className="text-headline-sm text-foreground">Cambios</h2>
+        <Etiqueta className="ml-auto">
+          {cambios.length} {cambios.length === 1 ? "edición" : "ediciones"}
+        </Etiqueta>
+      </div>
+      <ol className="flex flex-col gap-space-lg">
+        {cambios.map((c) => (
+          <li key={c.anteriorId} className="flex flex-col gap-space-xs">
+            <span className="text-label text-muted-foreground">
+              <span className="font-mono tabular-nums">{formatearFechaHora(c.en)}</span> · {c.usuario}
+            </span>
+            <span className="text-body-md text-foreground">{c.motivo}</span>
+            {c.diferencias.length > 0 ? (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-space-md gap-y-space-2xs rounded-lg bg-muted p-space-sm text-body-sm">
+                {c.diferencias.map((d) => (
+                  <div key={d.campo} className="contents">
+                    <dt className="text-muted-foreground">{d.campo}</dt>
+                    <dd className="text-foreground">
+                      <span className="text-muted-foreground line-through">{d.antes}</span> → {d.ahora}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <span className="text-body-sm text-muted-foreground">Sin cambios en las condiciones.</span>
+            )}
+            <Link href={`/prestamos/${c.anteriorId}?anterior`} className="self-start text-body-sm text-link hover:underline">
+              Ver cómo estaba{c.numeroAnterior !== null && <> ({numeroPrestamo(c.numeroAnterior)})</>}
+            </Link>
+          </li>
+        ))}
+      </ol>
     </Panel>
   );
 }

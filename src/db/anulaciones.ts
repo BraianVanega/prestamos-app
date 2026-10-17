@@ -27,7 +27,7 @@ import type { Asiento } from "@/engine/asientos";
 import type { Fecha } from "@/engine/fechas";
 import { deudasAFecha } from "@/engine/pago";
 import { DECIMALES } from "@/engine/redondeo";
-import type { EntidadAnulable } from "@/lib/anulaciones";
+import { PATRON_MOTIVO_EDICION, type EntidadAnulable } from "@/lib/anulaciones";
 import { formatearFecha } from "@/lib/formato";
 import { formatearArs, formatearTc } from "@/lib/numeros";
 import { numeroPrestamo } from "@/lib/prestamos";
@@ -398,6 +398,7 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
     })
     .from(anulaciones)
     .innerJoin(usuarios, eq(usuarios.id, anulaciones.creadoPor))
+    .where(sql`${anulaciones.motivo} !~ ${PATRON_MOTIVO_EDICION}`)
     .orderBy(desc(anulaciones.creadoEn))
     .limit(limite);
   const ids = (e: string) => filas.filter((f) => f.entidad === e).map((f) => f.entidadId);
@@ -490,7 +491,8 @@ export async function historialAnulaciones(l: Lector, limite = 100): Promise<Anu
       return {
         ...base,
         entidad: "prestamos",
-        descripcion: `Préstamo ${numeroPrestamo(p.numero)} de $${formatearArs(p.arsCapital)} a ${p.cliente} (editado)`,
+        descripcion: `Préstamo ${numeroPrestamo(p.numero)} de $${formatearArs(p.arsCapital)} a ${p.cliente}`,
+        // La ficha de la versión anterior lleva a la vigente, con el detalle en "Cambios".
         enlace: `/prestamos/${p.id}`,
       };
     }

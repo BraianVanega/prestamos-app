@@ -9,3 +9,10 @@ export const esquemaAnulacion = z.object({
 export type CamposAnulacion = keyof z.input<typeof esquemaAnulacion>;
 
 export type EntidadAnulable = z.infer<typeof esquemaAnulacion>["entidad"];
+
+/**
+ * Motivo de lo que anula una edición de préstamo por dentro (cobros que se vuelven
+ * a registrar, moras perdonadas que pasan a la versión nueva). No son correcciones
+ * de los socios: no se listan; la edición se ve en "Cambios" de la ficha.
+ */
+export const PATRON_MOTIVO_EDICION = "^(Corrección de|Perdonada en) #PR-[0-9]+";

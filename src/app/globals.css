@@ -133,7 +133,7 @@
   /* Tipografía: Geist para texto, Geist Mono para números. Mínimo 13px, sin mayúsculas sostenidas. */
   --font-sans: var(--font-geist-sans);
   --font-heading: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
 
   --text-headline-xl: 28px;
   --text-headline-xl--line-height: 34px;
@@ -154,7 +154,7 @@
   --text-body-sm--line-height: 20px;
   --text-data-currency-primary: 26px;
   --text-data-currency-primary--line-height: 32px;
-  --text-data-currency-primary--letter-spacing: -0.02em;
+  --text-data-currency-primary--letter-spacing: -0.025em;
   --text-data-currency-primary--font-weight: 500;
   --text-data-currency-secondary: 13px;
   --text-data-currency-secondary--line-height: 18px;
@@ -196,6 +196,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-variant-numeric: tabular-nums;
   }
   html {
     @apply font-sans;

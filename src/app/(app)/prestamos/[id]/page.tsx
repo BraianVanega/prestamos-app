@@ -87,7 +87,7 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
         <span className="text-muted-foreground" aria-hidden>
           /
         </span>
-        <h1 className="font-mono text-headline-sm text-link tabular-nums">{numeroPrestamo(p.numero)}</h1>
+        <h1 className="font-mono text-headline-sm font-medium text-link tabular-nums">{numeroPrestamo(p.numero)}</h1>
         <span
           className={cn(
             "inline-flex items-center rounded-full border px-space-sm py-space-2xs font-mono text-badge-label",
@@ -128,7 +128,7 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
               <>
                 {" "}
                 Lo reemplaza{" "}
-                <Link href={`/prestamos/${f.anulacion.reemplazo.id}`} className="font-mono font-semibold tabular-nums underline">
+                <Link href={`/prestamos/${f.anulacion.reemplazo.id}`} className="font-mono font-medium tabular-nums underline">
                   {numeroPrestamo(f.anulacion.reemplazo.numero)}
                 </Link>
                 .
@@ -165,7 +165,7 @@ export default async function PrestamoPage({ params }: PageProps<"/prestamos/[id
         <Panel className="flex flex-col gap-space-sm p-space-md">
           <div className="flex items-baseline justify-between gap-space-sm">
             <Etiqueta>Total recuperado</Etiqueta>
-            <span className={cn("font-mono text-data-cell font-semibold tabular-nums", COLORES_RIESGO[f.riesgo].texto)}>
+            <span className={cn("font-mono text-data-cell font-medium tabular-nums", COLORES_RIESGO[f.riesgo].texto)}>
               {pctRecuperado.toFixed(0)}%
             </span>
           </div>
@@ -311,7 +311,7 @@ function Cronograma({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapita
         <h2 className="text-headline-sm text-foreground">Cronograma de cuotas y pagos</h2>
         <span className="ml-auto text-body-md text-muted-foreground">
           {p.nCuotas} cuotas {FRECUENCIAS[p.frecuencia].plural} · Tasa{" "}
-          <span className="font-mono font-semibold text-foreground tabular-nums">{formatearPct(p.tasaTotalPct)}%</span>
+          <span className="font-mono font-medium text-foreground tabular-nums">{formatearPct(p.tasaTotalPct)}%</span>
         </span>
       </div>
       <div className="overflow-x-auto">

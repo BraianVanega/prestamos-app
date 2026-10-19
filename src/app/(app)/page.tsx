@@ -128,7 +128,7 @@ function Franja({ o }: { o: Overview }) {
       <span className="flex items-center gap-space-sm xl:ml-auto">
         <Wallet className="size-4" aria-hidden />
         Caja USDT:
-        <span className={cn("font-mono font-semibold tabular-nums", o.cuentas.caja.lt(0) ? "text-danger" : "text-foreground")}>
+        <span className={cn("font-mono font-medium tabular-nums", o.cuentas.caja.lt(0) ? "text-danger" : "text-foreground")}>
           {formatearUsdt(o.cuentas.caja)} USDT
         </span>
       </span>
@@ -191,7 +191,7 @@ function Ganancia({ o }: { o: Overview }) {
             <Etiqueta>
               {s.nombre} ({formatearPct(s.pctSociedad)}%)
             </Etiqueta>
-            <span className="font-mono text-data-cell font-semibold text-foreground tabular-nums">{formatearUsdt(s.ganancia)} USDT</span>
+            <span className="font-mono text-data-cell font-medium text-foreground tabular-nums">{formatearUsdt(s.ganancia)} USDT</span>
           </div>
         ))}
       </div>
@@ -321,7 +321,7 @@ function AgendaCobros({ o }: { o: Overview }) {
                 {(b.grupo === "hoy" || b.grupo === "manana") && <span className="font-mono tabular-nums"> · {diaYFecha(b.items[0]!.cuota.vencimiento)}</span>}
               </span>
               <span className="text-body-sm">({plural(b.items.length)})</span>
-              <span className="ml-auto font-mono text-data-cell font-semibold tabular-nums">${formatearArs(b.total)}</span>
+              <span className="ml-auto font-mono text-data-cell font-medium tabular-nums">${formatearArs(b.total)}</span>
             </div>
             <ul>
               {b.items.map((v) => {
@@ -342,7 +342,7 @@ function AgendaCobros({ o }: { o: Overview }) {
                     <div className="flex min-w-0 flex-1 basis-56 flex-col">
                       <span className="truncate text-body-lg font-medium text-foreground">{p.cliente.nombre}</span>
                       <span className="text-body-sm text-muted-foreground">
-                        <Link href={`/prestamos/${p.id}`} className="font-mono font-semibold text-link tabular-nums hover:underline">
+                        <Link href={`/prestamos/${p.id}`} className="font-mono font-medium text-link tabular-nums hover:underline">
                           {numeroPrestamo(p.numero)}
                         </Link>{" "}
                         · cuota <span className="font-mono tabular-nums">{c.numero}</span> de <span className="font-mono tabular-nums">{p.nCuotas}</span>
@@ -519,7 +519,7 @@ function Atraso({ o }: { o: Overview }) {
               >
                 <div className="flex flex-wrap items-center gap-x-space-sm gap-y-space-2xs">
                   <span className="truncate text-body-lg font-semibold text-foreground">{p.cliente.nombre}</span>
-                  <Link href={`/prestamos/${p.id}`} className="font-mono text-body-md font-semibold text-link tabular-nums hover:underline">
+                  <Link href={`/prestamos/${p.id}`} className="font-mono text-body-md font-medium text-link tabular-nums hover:underline">
                     {numeroPrestamo(p.numero)}
                   </Link>
                   <span className="ml-auto">

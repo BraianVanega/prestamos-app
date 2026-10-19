@@ -131,8 +131,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Tipografía: Geist para texto, Geist Mono para números. Mínimo 13px, sin mayúsculas sostenidas. */
-  --font-sans: var(--font-geist-sans);
-  --font-heading: var(--font-geist-sans);
+  --font-sans: var(--font-cifras), var(--font-geist-sans);
+  --font-heading: var(--font-cifras), var(--font-geist-sans);
   --font-mono: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
 
   --text-headline-xl: 28px;

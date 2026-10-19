@@ -375,7 +375,7 @@ export function FormPrestamo({
                 USDT prestado (base de medición congelada)
               </span>
               <span className="flex flex-wrap items-baseline gap-x-space-md">
-                <span className="font-mono text-headline-xl tabular-nums">
+                <span className="font-mono text-headline-xl font-medium tracking-tight tabular-nums">
                   {calculo ? formatearUsdt(calculo.plan.usdtPrestado) : "—"} USDT
                 </span>
                 {calculo && (

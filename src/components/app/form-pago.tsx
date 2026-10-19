@@ -280,7 +280,7 @@ export function FormPago({
                 <div className="ml-auto flex flex-col items-end gap-space-2xs">
                   {atrasoMax > 0 && <BadgeRiesgo nivel="rojo">En mora · {atrasoMax} días</BadgeRiesgo>}
                   <span className="text-label text-muted-foreground">Deuda exigible al {formatearFecha(fecha)}</span>
-                  <span className={cn("font-mono text-headline-lg tabular-nums", atrasoMax > 0 ? "text-danger" : "text-foreground")}>
+                  <span className={cn("font-mono text-headline-lg font-medium tabular-nums", atrasoMax > 0 ? "text-danger" : "text-foreground")}>
                     ${formatearArs(deudaTotal)}
                   </span>
                 </div>

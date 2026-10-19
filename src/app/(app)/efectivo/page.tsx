@@ -71,7 +71,7 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
       <div className="grid gap-gutter-compact md:grid-cols-3">
         <Tarjeta>
           <Etiqueta>Efectivo sin convertir</Etiqueta>
-          <span className="font-mono text-headline-lg text-foreground tabular-nums">${formatearArs(total)}</span>
+          <span className="font-mono text-headline-lg font-medium text-foreground tabular-nums">${formatearArs(total)}</span>
           <span className="text-body-sm text-muted-foreground">
             {pendientes.length} pago(s) en efectivo
             {!caja.eq(total) && (
@@ -84,7 +84,7 @@ export default async function EfectivoPage({ searchParams }: PageProps<"/efectiv
         </Tarjeta>
         <Tarjeta>
           <Etiqueta>Antigüedad del más viejo</Etiqueta>
-          <span className={cn("font-mono text-headline-lg tabular-nums", diasMasViejo > 7 ? "text-danger" : "text-foreground")}>
+          <span className={cn("font-mono text-headline-lg font-medium tabular-nums", diasMasViejo > 7 ? "text-danger" : "text-foreground")}>
             {masViejo ? `${diasMasViejo} días` : "—"}
           </span>
           <span className="text-body-sm text-muted-foreground">

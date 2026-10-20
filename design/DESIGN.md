@@ -37,10 +37,10 @@ typography:
   body-md: { fontFamily: Geist, fontSize: 15px, fontWeight: '400', lineHeight: 22px }
   body-sm: { fontFamily: Geist, fontSize: 14px, fontWeight: '400', lineHeight: 20px }
   label: { fontFamily: Geist, fontSize: 13px, fontWeight: '400', lineHeight: 18px }
-  data-currency-primary: { fontFamily: Geist Mono, fontSize: 26px, fontWeight: '500', lineHeight: 32px, letterSpacing: -0.02em }
-  data-currency-secondary: { fontFamily: Geist Mono, fontSize: 13px, fontWeight: '500', lineHeight: 18px }
-  data-cell: { fontFamily: Geist Mono, fontSize: 15px, fontWeight: '400', lineHeight: 22px }
-  badge-label: { fontFamily: Geist Mono, fontSize: 13px, fontWeight: '500', lineHeight: 18px }
+  data-currency-primary: { fontFamily: Geist (tabular-nums), fontSize: 26px, fontWeight: '500', lineHeight: 32px, letterSpacing: -0.02em }
+  data-currency-secondary: { fontFamily: Geist (tabular-nums), fontSize: 13px, fontWeight: '500', lineHeight: 18px }
+  data-cell: { fontFamily: Geist (tabular-nums), fontSize: 15px, fontWeight: '400', lineHeight: 22px }
+  badge-label: { fontFamily: Geist (tabular-nums), fontSize: 13px, fontWeight: '500', lineHeight: 18px }
 rounded:
   DEFAULT: 0.25rem
   modal: 0.5rem
@@ -98,7 +98,7 @@ Regla de lectura: **pesos = lo que debe o paga el cliente** (con `$` adelante);
 
 ## Tipografía
 
-Geist para texto, Geist Mono para números. Mínimo 13px (etiquetas y metadatos),
+Geist para texto y números (cifras de ancho fijo, `tabular-nums`). Mínimo 13px (etiquetas y metadatos),
 14px en ayudas y 15–16px en texto. **Sin mayúsculas sostenidas** (nada de
 `uppercase` ni tracking ancho).
 

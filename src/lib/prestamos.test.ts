@@ -51,6 +51,12 @@ describe("esquemaPrestamo", () => {
   it("mora y gracia pueden ser 0", () => {
     expect(errores({ moraPct: "0", diasGracia: "0" })).toEqual({});
   });
+
+  it("mora y gracia vacías valen 0 (sin recargo)", () => {
+    const d = esquemaPrestamo.parse({ ...base, moraPct: "", diasGracia: "  " });
+    expect(d.moraPct.isZero()).toBe(true);
+    expect(d.diasGracia).toBe(0);
+  });
 });
 
 describe("numeroPrestamo / hoyArgentina", () => {

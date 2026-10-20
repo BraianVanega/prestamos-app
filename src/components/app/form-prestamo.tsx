@@ -376,7 +376,7 @@ export function FormPrestamo({
                 USDT prestado (base de medición congelada)
               </span>
               <span className="flex flex-wrap items-baseline gap-x-space-md">
-                <span className="font-mono text-headline-xl tabular-nums">
+                <span className="font-mono text-headline-xl font-medium tracking-tight tabular-nums">
                   {calculo ? formatearUsdt(calculo.plan.usdtPrestado) : "—"} USDT
                 </span>
                 {calculo && (
@@ -442,10 +442,10 @@ export function FormPrestamo({
 
           <Panel icono={<CalendarRange aria-hidden />} titulo="Mora y notas">
             <div className="grid grid-cols-1 gap-margin md:grid-cols-3">
-              <Campo id="moraPct" etiqueta="Mora (%)" error={err("moraPct")} ayuda="Recargo único sobre el capital impago.">
+              <Campo id="moraPct" etiqueta="Mora (%)" error={err("moraPct")} ayuda="Opcional. Recargo único sobre el capital impago; en 0 no se cobra.">
                 <EntradaNumero id="moraPct" valor={v.moraPct} onChange={set("moraPct")} sufijo="%" error={!!err("moraPct")} />
               </Campo>
-              <Campo id="diasGracia" etiqueta="Días de gracia" error={err("diasGracia")} ayuda="Pasados estos días se carga la mora.">
+              <Campo id="diasGracia" etiqueta="Días de gracia" error={err("diasGracia")} ayuda="Opcional. Pasados estos días se carga la mora.">
                 <EntradaNumero id="diasGracia" valor={v.diasGracia} onChange={set("diasGracia")} sufijo="días" error={!!err("diasGracia")} entero />
               </Campo>
             </div>

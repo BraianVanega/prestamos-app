@@ -206,7 +206,7 @@ function FilaPrestamo({ p, num }: { p: ResumenPrestamo; num: string }) {
   return (
     <tr className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-primary/4">
       <td className="px-space-md py-space-sm">
-        <Link href={`/prestamos/${p.id}`} className="font-mono text-body-lg font-semibold text-link tabular-nums hover:underline">
+        <Link href={`/prestamos/${p.id}`} className="font-mono text-body-lg font-medium text-link tabular-nums hover:underline">
           {numeroPrestamo(p.numero)}
         </Link>
       </td>

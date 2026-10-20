@@ -11,6 +11,8 @@ export const FRECUENCIAS: Record<Frecuencia, { etiqueta: string; plural: string 
   mes: { etiqueta: "Mensual (mismo día)", plural: "mensuales" },
 };
 
+const vacioEsCero = (v: unknown) => (typeof v === "string" && v.trim() === "" ? "0" : v);
+
 export const esquemaPrestamo = z.object({
   clienteId: z.uuid("Elegí un cliente."),
   fechaDesembolso: fecha,
@@ -19,8 +21,9 @@ export const esquemaPrestamo = z.object({
   frecuencia: z.enum(["dia", "semana", "quincena", "mes"], "Elegí la frecuencia."),
   nCuotas: entero("la cantidad de cuotas", 1, 365),
   tasaTotalPct: decimal({ campo: "la tasa", decimales: 4, maxEnteros: 5, min: "noNeg" }),
-  moraPct: decimal({ campo: "la mora", decimales: 4, maxEnteros: 5, min: "noNeg" }),
-  diasGracia: entero("los días de gracia", 0, 365),
+  // Opcionales: vacíos valen 0 (sin recargo por atraso).
+  moraPct: z.preprocess(vacioEsCero, decimal({ campo: "la mora", decimales: 4, maxEnteros: 5, min: "noNeg" })),
+  diasGracia: z.preprocess(vacioEsCero, entero("los días de gracia", 0, 365)),
   notas: z
     .string()
     .trim()

@@ -95,7 +95,7 @@ export default async function PrestamoPage({ params, searchParams }: PageProps<"
         <span className="text-muted-foreground" aria-hidden>
           /
         </span>
-        <h1 className="font-mono text-headline-sm text-link tabular-nums">{numeroPrestamo(p.numero)}</h1>
+        <h1 className="font-mono text-headline-sm font-medium text-link tabular-nums">{numeroPrestamo(p.numero)}</h1>
         <span
           className={cn(
             "inline-flex items-center rounded-full border px-space-sm py-space-2xs font-mono text-badge-label",
@@ -157,7 +157,7 @@ export default async function PrestamoPage({ params, searchParams }: PageProps<"
         <Panel className="flex flex-col gap-space-sm p-space-md">
           <div className="flex items-baseline justify-between gap-space-sm">
             <Etiqueta>Total recuperado</Etiqueta>
-            <span className={cn("font-mono text-data-cell font-semibold tabular-nums", COLORES_RIESGO[f.riesgo].texto)}>
+            <span className={cn("font-mono text-data-cell font-medium tabular-nums", COLORES_RIESGO[f.riesgo].texto)}>
               {pctRecuperado.toFixed(0)}%
             </span>
           </div>
@@ -304,7 +304,7 @@ function Cronograma({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapita
         <h2 className="text-headline-sm text-foreground">Cronograma de cuotas y pagos</h2>
         <span className="ml-auto text-body-md text-muted-foreground">
           {p.nCuotas} cuotas {FRECUENCIAS[p.frecuencia].plural} · Tasa{" "}
-          <span className="font-mono font-semibold text-foreground tabular-nums">{formatearPct(p.tasaTotalPct)}%</span>
+          <span className="font-mono font-medium text-foreground tabular-nums">{formatearPct(p.tasaTotalPct)}%</span>
         </span>
       </div>
       <div className="overflow-x-auto">
@@ -399,7 +399,9 @@ function Cargos({ f }: { f: FichaPrestamo }) {
         <div className="flex flex-col">
           <h2 className="text-headline-sm text-foreground">Mora, cargos y descuentos</h2>
           <span className="text-body-sm text-muted-foreground">
-            Mora del {formatearPct(f.prestamo.moraPct)}% sobre el capital impago, pasados {f.prestamo.diasGracia} días de gracia
+            {new Decimal(f.prestamo.moraPct).isZero()
+              ? "Sin recargo por atraso"
+              : `Mora del ${formatearPct(f.prestamo.moraPct)}% sobre el capital impago, pasados ${f.prestamo.diasGracia} días de gracia`}
           </span>
         </div>
       </div>
@@ -491,7 +493,7 @@ function Condiciones({ f, arsCapital, arsInteres }: { f: FichaPrestamo; arsCapit
     ["Interés pactado", `$${formatearArs(arsInteres)}`],
     ["Total a cobrar", `$${formatearArs(arsCapital.plus(arsInteres))}`],
     ["Plazo", `${f.diasPlazo} días`],
-    ["Mora / gracia", `${formatearPct(p.moraPct)}% / ${p.diasGracia} días`],
+    ["Mora / gracia", new Decimal(p.moraPct).isZero() ? "Sin recargo" : `${formatearPct(p.moraPct)}% / ${p.diasGracia} días`],
   ];
   return (
     <Panel className="p-space-md">

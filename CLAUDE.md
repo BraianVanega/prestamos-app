@@ -76,7 +76,7 @@ Sistema de gestión de préstamos (ARS / USDT) para una sociedad con dos socios.
   `text-label`, `text-data-currency-primary|secondary`, `text-data-cell`, `text-badge-label`.
   Sin mayúsculas sostenidas (`uppercase`) ni texto corrido en mono.
 - **Números con `tabular-nums`**: todo monto, TC, tasa, porcentaje, fecha, N° de
-  préstamo o cuota se renderiza con `font-mono tabular-nums` (Geist Mono), alineado
+  préstamo o cuota se renderiza con `font-mono tabular-nums` (Geist con cifras de ancho fijo; sin monoespaciada: no queremos el 0 con barra), alineado
   a la derecha en tablas.
 - Radios: 4px por defecto (`rounded-lg`), modales hasta 8px; badges de riesgo `rounded-full`.
 - Por ahora solo tema claro (DESIGN.md no define tokens oscuros).

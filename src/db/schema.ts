@@ -164,7 +164,7 @@ export const prestamos = pgTable(
   "prestamos",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    numero: serial("numero").notNull().unique(), // número visible, como en la planilla
+    numero: serial("numero").notNull(), // número visible, como en la planilla; lo conservan sus versiones editadas
     clienteId: uuid("cliente_id")
       .notNull()
       .references(() => clientes.id),
@@ -180,8 +180,8 @@ export const prestamos = pgTable(
     nCuotas: integer("n_cuotas").notNull(),
     vencimientoFinal: date("vencimiento_final").notNull(),
     // Mora: recargo único = mora_pct × capital impago de la cuota si el atraso supera dias_gracia
-    moraPct: pct("mora_pct").notNull().default("20"),
-    diasGracia: integer("dias_gracia").notNull().default(5),
+    moraPct: pct("mora_pct").notNull().default("0"),
+    diasGracia: integer("dias_gracia").notNull().default(0),
 
     // Resultados congelados al alta, verificados por CHECK
     usdtPrestado: usdt("usdt_prestado").notNull(),
@@ -200,6 +200,8 @@ export const prestamos = pgTable(
     foreignKey({ columns: [t.refinanciadoDesdeId], foreignColumns: [t.id] }),
     foreignKey({ columns: [t.corrigeAId], foreignColumns: [t.id] }),
     unique("prestamos_corrige_a_unico").on(t.corrigeAId),
+    // Una edición anula el préstamo y crea otro con el mismo N°: único solo entre los no anulados.
+    uniqueIndex("prestamos_numero_vigente").on(t.numero).where(sql`${t.estado} <> 'anulado'`),
     index("prestamos_cliente_idx").on(t.clienteId),
     index("prestamos_estado_idx").on(t.estado),
     check("ars_capital_pos", sql`${t.arsCapital} > 0`),

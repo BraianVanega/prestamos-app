@@ -133,6 +133,9 @@ describe("editar préstamo con cobros", () => {
       const nuevo = await prestamo(tx, r.id);
       expect(viejo.estado).toBe("anulado");
       expect(nuevo.corrigeAId).toBe(s.prestamoId);
+      // Para los socios es el mismo préstamo: conserva el N°.
+      expect(nuevo.numero).toBe(viejo.numero);
+      expect(r.numero).toBe(viejo.numero);
       expect(nuevo.usdtPrestado).toBe("80.00000000");
       // 75 USDT cobrados no alcanzan el costo de 80: todo es recupero, sin ganancia.
       expect(await suma(tx, "cartera", r.id)).toBe("5.00000000");
@@ -146,6 +149,26 @@ describe("editar préstamo con cobros", () => {
 
       const vigentes = await pagosVigentes(tx, s.clienteId);
       expect(vigentes.map((p) => [p.fecha, p.ars, p.tcSalida])).toEqual([["2026-01-20", "120000.00", "1600.000000"]]);
+    });
+  });
+
+  it("editado dos veces sigue con el mismo N°", async () => {
+    await enRollback(async (tx) => {
+      const s = await escenario(tx);
+      const original = await prestamo(tx, s.prestamoId);
+      const r1 = await corregirPrestamo(
+        tx,
+        { id: s.prestamoId, datos: { ...BASE(s.clienteId), tcEntrada: new Decimal("1250") }, motivo: "TC" },
+        s.ctxCorreccion,
+      );
+      const r2 = await corregirPrestamo(
+        tx,
+        { id: r1.id, datos: { ...BASE(s.clienteId), tcEntrada: new Decimal("1300") }, motivo: "TC otra vez" },
+        s.ctxCorreccion,
+      );
+      expect([r1.numero, r2.numero]).toEqual([original.numero, original.numero]);
+      expect((await prestamo(tx, r1.id)).estado).toBe("anulado");
+      expect((await prestamo(tx, r2.id)).corrigeAId).toBe(r1.id);
     });
   });
 

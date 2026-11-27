@@ -8,6 +8,7 @@ import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db, type Tx } from "@/db";
 import { insertarPrestamo } from "@/db/alta-prestamo";
+import { anular } from "@/db/anulaciones";
 import { efectivoPendiente, ErrorConversion, insertarConversion } from "@/db/conversion";
 import { cargarDeudaCliente, insertarPago, saldosAFavor } from "@/db/registrar-pago";
 import { asientos, clientes, participantes, transacciones, usuarios } from "@/db/schema";
@@ -114,6 +115,17 @@ describe("insertarConversion", () => {
       await convertir(tx, s, "2026-02-05", "56000", "1400"); // 40 USDT: 22,5 recupero + 17,5 ganancia
       expect(await saldoCuenta(tx, "cartera", s.prestamoId)).toBe("0.00000000");
       expect(await saldoCuenta(tx, "ganancia", s.prestamoId)).toBe("-17.50000000");
+    });
+  });
+
+  it("anulada una conversión, el mismo efectivo se puede volver a convertir", async () => {
+    await enRollback(async (tx) => {
+      const s = await conEfectivo(tx, "120000");
+      const { conversionId } = await convertir(tx, s, "2026-02-02", "120000", "1600");
+      await anular(tx, "conversiones", { id: conversionId, motivo: "TC mal cargado" }, { usuarioId: s.usuarioId, hoy: "2026-02-03" });
+      await convertir(tx, s, "2026-02-02", "120000", "1500");
+      await tx.execute(sql`set constraints all immediate`);
+      expect((await efectivoPendiente(tx)).filter((p) => p.clienteId === s.clienteId)).toEqual([]);
     });
   });
 

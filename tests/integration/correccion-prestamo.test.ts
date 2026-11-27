@@ -235,6 +235,39 @@ describe("editar préstamo con cobros", () => {
     });
   });
 
+  it("una conversión que incluye efectivo anterior al préstamo editado se repite sin duplicarlo", async () => {
+    await enRollback(async (tx) => {
+      const s = await escenario(tx);
+      await s.alta({ fechaDesembolso: "2025-12-15" }); // cuota 1 vence el 15/01
+      const viejo = await pagar(tx, s, "2026-01-10", "60000", { efectivo: true }); // todo al otro préstamo
+      const nuevo = await pagar(tx, s, "2026-01-20", "60000", { efectivo: true }); // cuota 1 del editado
+      await insertarConversion(
+        tx,
+        {
+          fecha: "2026-01-21",
+          ars: new Decimal("120000"),
+          tc: new Decimal("1500"),
+          notas: null,
+          lotes: new Map([
+            [viejo, new Decimal("60000")],
+            [nuevo, new Decimal("60000")],
+          ]),
+        },
+        { usuarioId: s.usuarioId, creadoEn: await instante(tx) },
+      );
+      const efectivo = await suma(tx, "caja_efectivo_ars");
+
+      await corregirPrestamo(
+        tx,
+        { id: s.prestamoId, datos: { ...BASE(s.clienteId), fechaDesembolso: "2026-01-02" }, motivo: "Fecha mal cargada" },
+        s.ctxCorreccion,
+      );
+      await tx.execute(sql`set constraints all immediate`);
+      expect(await suma(tx, "caja_efectivo_ars")).toBe(efectivo);
+      expect((await efectivoPendiente(tx)).filter((p) => p.clienteId === s.clienteId)).toEqual([]);
+    });
+  });
+
   it("lo que fue a otro préstamo del cliente se repite igual", async () => {
     await enRollback(async (tx) => {
       const s = await escenario(tx);
